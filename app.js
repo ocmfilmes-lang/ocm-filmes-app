@@ -1152,4 +1152,10 @@ sb.auth.onAuthStateChange((evento, s) => {
 });
 render();
 
-if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator && window.isSecureContext) {
+  // quando sai versão nova do app, recarrega sozinho uma vez
+  const tinhaVersao = !!navigator.serviceWorker.controller;
+  let recarregou = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (tinhaVersao && !recarregou && !sheet.open) { recarregou = true; location.reload(); } });
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((r) => r.update()).catch(() => {});
+}
