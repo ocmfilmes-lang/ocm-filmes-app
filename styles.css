@@ -353,3 +353,15 @@ dialog#sheet::backdrop { background: rgba(9, 15, 25, .5); }
   .print-area .block { margin-top: 14pt; white-space: pre-wrap; }
   @page { margin: 18mm; }
 }
+
+/* ---------- login e sincronização ---------- */
+body.deslogado .side, body.deslogado .tabbar, body.deslogado .topbar, body.deslogado .fab { display: none !important; }
+.login { min-height: 100%; display: grid; place-items: center; padding: 24px 16px calc(env(safe-area-inset-bottom) + 24px); }
+.login-box { width: 100%; max-width: 360px; background: var(--surface); border-radius: 18px; box-shadow: var(--shadow); padding: 28px 22px 18px; }
+.login-logo { font-weight: 800; font-size: 26px; letter-spacing: -.02em; }
+.login-box .sub { color: var(--muted); font-size: 14px; }
+.login-box .field input { width: 100%; font: inherit; font-size: 16px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 11px; }
+.login-msg { color: var(--muted); font-size: 14px; min-height: 1em; margin: 12px 2px 4px; }
+.sync { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--ok); opacity: .8; transition: background .2s; }
+.sync.salvando { background: var(--warn); }
+.sync.erro { background: var(--danger); }

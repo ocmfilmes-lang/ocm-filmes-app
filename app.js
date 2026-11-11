@@ -1,4 +1,5 @@
-// OCM Filmes — quadros estilo Trello / ClickUp / Monday (fase 1: dados no aparelho)
+// OCM Filmes — quadros estilo Trello / ClickUp / Monday, com dados na nuvem (Supabase)
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
 
 /* =========================================================
    Utilidades
@@ -6,7 +7,7 @@
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) => (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16)));
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const money = (v) => BRL.format(Number(v) || 0);
 const moneyInput = (v) => (v === '' || v == null ? '' : (Number(v) || 0).toFixed(2).replace('.', ','));
@@ -69,7 +70,6 @@ const ICON = {
 /* =========================================================
    Dados
    ========================================================= */
-const KEY = 'ocm-quadros-v1';
 const col = (nome, cor, extra = {}) => ({ id: uid(), nome, cor: COR[cor], ...extra });
 const MODELOS = {
   simples: { nome: 'Simples (A fazer · Fazendo · Feito)', tipo: 'livre', cols: () => [col('A fazer', 'Cinza'), col('Fazendo', 'Azul'), col('Feito', 'Verde', { concluida: true })] },
@@ -77,30 +77,176 @@ const MODELOS = {
   orcamentos: { nome: 'Orçamentos', tipo: 'orcamentos', cols: () => [col('Rascunho', 'Cinza'), col('Enviado', 'Azul'), col('Negociando', 'Laranja'), col('Aprovado', 'Verde', { concluida: true }), col('Recusado', 'Vermelho', { concluida: true })] },
 };
 
-function seed() {
-  const producao = { id: uid(), nome: 'Produção', cor: COR.Roxo, tipo: 'livre', colunas: MODELOS.producao.cols() };
-  const tarefas = { id: uid(), nome: 'Tarefas', cor: COR.Azul, tipo: 'livre', colunas: [col('A fazer', 'Cinza'), col('Fazendo', 'Azul'), col('Esperando retorno', 'Amarelo'), col('Feito', 'Verde', { concluida: true })] };
-  const orcamentos = { id: uid(), nome: 'Orçamentos', cor: COR.Verde, tipo: 'orcamentos', colunas: MODELOS.orcamentos.cols() };
-  return {
-    v: 1,
-    clientes: [],
-    quadros: [producao, tarefas, orcamentos],
-    cards: [],
-    lancamentos: [],
-    seq: { orcamento: 0 },
-  };
-}
 function novoCard(quadro, colunaId, titulo, extra = {}, ordem = 0) {
   return {
     id: uid(), quadroId: quadro.id, colunaId, ordem, titulo,
     descricao: '', clienteId: '', prazo: '', prioridade: '', responsavel: '', link: '',
-    checklist: [], criadoEm: new Date().toISOString(), ...extra,
+    checklist: [], numero: '', itens: [], desconto: 0, data: '', validade: '', condicoes: '', lancado: false,
+    criadoEm: new Date().toISOString(), ...extra,
   };
 }
-function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; } }
-function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) { alert('Não consegui salvar: ' + e.message); } }
-let db = load() || seed();
-save();
+
+/* ---------- nuvem (Supabase) ---------- */
+const SUPA_URL = 'https://vckdipuixrsozkqlwzlf.supabase.co';
+// chave pública (anon): só funciona junto com o login e as regras de acesso do banco
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZja2RpcHVpeHJzb3prcWx3emxmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0MjEzMDAsImV4cCI6MjEwOTk5NzMwMH0.Gubeo8H9RbiVUALk2gEt7qT4DlJ57pYE4w0E6calfoY';
+const sb = createClient(SUPA_URL, SUPA_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+
+const TABELAS = {
+  clientes: { id: 'id', nome: 'nome', contato: 'contato', email: 'email', telefone: 'telefone', obs: 'obs' },
+  quadros: { id: 'id', nome: 'nome', cor: 'cor', tipo: 'tipo', posicao: 'posicao', colunas: 'colunas' },
+  cards: {
+    id: 'id', quadroId: 'quadro_id', colunaId: 'coluna_id', ordem: 'ordem', titulo: 'titulo', descricao: 'descricao',
+    clienteId: 'cliente_id', prazo: 'prazo', prioridade: 'prioridade', responsavel: 'responsavel', link: 'link',
+    checklist: 'checklist', numero: 'numero', itens: 'itens', desconto: 'desconto', data: 'data', validade: 'validade',
+    condicoes: 'condicoes', lancado: 'lancado',
+  },
+  lancamentos: { id: 'id', tipo: 'tipo', descricao: 'descricao', valor: 'valor', data: 'data', categoria: 'categoria', clienteId: 'cliente_id', pago: 'pago', cardId: 'card_id' },
+};
+const ORDEM = ['clientes', 'quadros', 'cards', 'lancamentos'];
+const ANULAVEIS = new Set(['cliente_id', 'prazo', 'data', 'validade', 'card_id', 'numero']);
+const NUMEROS = new Set(['desconto', 'valor', 'ordem', 'posicao']);
+const estavel = (v) => (Array.isArray(v) ? `[${v.map(estavel).join(',')}]` : v && typeof v === 'object' ? `{${Object.keys(v).sort().map((k) => JSON.stringify(k) + ':' + estavel(v[k])).join(',')}}` : JSON.stringify(v ?? null));
+
+let sessao = null;      // login atual
+let ws = null;          // workspace (OCM Filmes)
+let carregado = false;
+let db = { clientes: [], quadros: [], cards: [], lancamentos: [] };
+let snap = { clientes: new Map(), quadros: new Map(), cards: new Map(), lancamentos: new Map() };
+let syncEstado = 'ok';  // ok | salvando | erro
+
+function paraLinha(nome, o) {
+  const r = { workspace_id: ws };
+  for (const [k, c] of Object.entries(TABELAS[nome])) {
+    let v = o[k];
+    if (v === undefined) continue;
+    if (ANULAVEIS.has(c) && (v === '' || v == null)) v = null;
+    if (NUMEROS.has(c)) v = Number(v) || 0;
+    r[c] = v;
+  }
+  return r;
+}
+function deLinha(nome, r) {
+  const o = {};
+  for (const [k, c] of Object.entries(TABELAS[nome])) {
+    let v = r[c];
+    if (ANULAVEIS.has(c) && v == null) v = '';
+    if (NUMEROS.has(c)) v = Number(v) || 0;
+    o[k] = v;
+  }
+  if (r.criado_em) o.criadoEm = r.criado_em;
+  return o;
+}
+const assinatura = (nome, o) => estavel(paraLinha(nome, o));
+
+function marcarSync(estado) {
+  syncEstado = estado;
+  const el = $('#sync');
+  if (el) { el.className = 'sync ' + estado; el.title = { ok: 'Tudo salvo', salvando: 'Salvando…', erro: 'Sem conexão — tentando de novo' }[estado]; }
+}
+
+let syncTimer = null, syncando = false, syncDeNovo = false;
+function save() { marcarSync('salvando'); clearTimeout(syncTimer); syncTimer = setTimeout(sincronizar, 300); }
+function temPendente() {
+  return ORDEM.some((n) => db[n].length !== snap[n].size || db[n].some((o) => snap[n].get(o.id) !== assinatura(n, o)));
+}
+async function sincronizar() {
+  if (!ws) return;
+  if (syncando) { syncDeNovo = true; return; }
+  syncando = true;
+  try {
+    // limpa referências a coisas que foram apagadas
+    const cardIds = new Set(db.cards.map((c) => c.id)), cliIds = new Set(db.clientes.map((c) => c.id)), qIds = new Set(db.quadros.map((q) => q.id));
+    db.cards = db.cards.filter((c) => qIds.has(c.quadroId));
+    db.cards.forEach((c) => { if (c.clienteId && !cliIds.has(c.clienteId)) c.clienteId = ''; });
+    db.lancamentos.forEach((l) => { if (l.cardId && !cardIds.has(l.cardId)) l.cardId = ''; if (l.clienteId && !cliIds.has(l.clienteId)) l.clienteId = ''; });
+
+    const mudou = {}, sumiu = {};
+    for (const n of ORDEM) {
+      const atual = new Map(db[n].map((o) => [o.id, assinatura(n, o)]));
+      mudou[n] = [...atual].filter(([id, a]) => snap[n].get(id) !== a);
+      sumiu[n] = [...snap[n].keys()].filter((id) => !atual.has(id));
+    }
+    for (const n of ORDEM) {
+      if (!mudou[n].length) continue;
+      const linhas = mudou[n].map(([id]) => paraLinha(n, db[n].find((o) => o.id === id)));
+      const { error } = await sb.from(n).upsert(linhas);
+      if (error) throw error;
+      mudou[n].forEach(([id, a]) => snap[n].set(id, a));
+    }
+    for (const n of [...ORDEM].reverse()) {
+      if (!sumiu[n].length) continue;
+      const { error } = await sb.from(n).delete().in('id', sumiu[n]);
+      if (error) throw error;
+      sumiu[n].forEach((id) => snap[n].delete(id));
+    }
+    marcarSync('ok');
+  } catch (e) {
+    console.error('sincronizar', e);
+    marcarSync('erro');
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(sincronizar, 5000);
+  } finally {
+    syncando = false;
+    if (syncDeNovo) { syncDeNovo = false; sincronizar(); }
+  }
+}
+
+async function carregarTudo() {
+  const novo = {};
+  for (const n of ORDEM) {
+    const { data, error } = await sb.from(n).select('*').eq('workspace_id', ws);
+    if (error) throw error;
+    novo[n] = data.map((r) => deLinha(n, r));
+  }
+  novo.quadros.sort((a, b) => a.posicao - b.posicao);
+  db = novo;
+  for (const n of ORDEM) snap[n] = new Map(db[n].map((o) => [o.id, assinatura(n, o)]));
+  carregado = true;
+}
+
+let canal = null;
+function assinarAoVivo() {
+  canal?.unsubscribe();
+  canal = sb.channel('ws-' + ws);
+  for (const n of ORDEM) {
+    canal.on('postgres_changes', { event: 'INSERT', schema: 'public', table: n, filter: `workspace_id=eq.${ws}` }, (p) => chegou(n, p.new));
+    canal.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: n, filter: `workspace_id=eq.${ws}` }, (p) => chegou(n, p.new));
+    canal.on('postgres_changes', { event: 'DELETE', schema: 'public', table: n }, (p) => saiu(n, p.old?.id));
+  }
+  canal.subscribe();
+}
+function chegou(n, row) {
+  const o = deLinha(n, row);
+  const a = assinatura(n, o);
+  if (snap[n].get(o.id) === a) return; // é o eco da nossa própria alteração
+  const i = db[n].findIndex((x) => x.id === o.id);
+  if (i >= 0) Object.assign(db[n][i], o); else db[n].push(o);
+  if (n === 'quadros') db.quadros.sort((x, y) => x.posicao - y.posicao);
+  snap[n].set(o.id, a);
+  atualizarTela();
+}
+function saiu(n, id) {
+  if (!id || !snap[n].has(id)) return;
+  db[n] = db[n].filter((x) => x.id !== id);
+  snap[n].delete(id);
+  atualizarTela();
+}
+function atualizarTela() { if (!sheet.open && !drag) render(); }
+
+async function iniciarSessao() {
+  try {
+    const { data, error } = await sb.rpc('entrar');
+    if (error) throw error;
+    ws = data;
+    await carregarTudo();
+    assinarAoVivo();
+  } catch (e) {
+    console.error(e);
+    alert('Não consegui carregar seus dados: ' + (e.message || e));
+  }
+  render();
+}
 
 const quadro = (id) => db.quadros.find((q) => q.id === id);
 const coluna = (q, id) => q?.colunas.find((c) => c.id === id);
@@ -119,7 +265,15 @@ function novoCliente() {
 function criarCard(q, colunaId, titulo, extra = {}) {
   const ordem = Math.max(-1, ...cardsDe(colunaId).map((c) => c.ordem)) + 1;
   const c = novoCard(q, colunaId, titulo, extra, ordem);
-  if (q.tipo === 'orcamentos') Object.assign(c, { numero: `${new Date().getFullYear()}-${String(++db.seq.orcamento).padStart(3, '0')}`, itens: [], desconto: 0, data: today(), validade: addDays(today(), 15), condicoes: '' });
+  if (q.tipo === 'orcamentos') {
+    Object.assign(c, { data: today(), validade: addDays(today(), 15) });
+    sb.rpc('proximo_orcamento', { ws }).then(({ data }) => {
+      if (!data) return;
+      c.numero = data; save();
+      const chip = $('#numOrc'); if (chip) chip.textContent = ' · nº ' + data;
+      atualizarTela();
+    });
+  }
   db.cards.push(c);
   save();
   return c;
@@ -223,7 +377,7 @@ function openCard(id) {
 
   sheetForm.innerHTML = `
     <div class="sheet-head">
-      <span class="chipc" style="--c:${q.cor}">${esc(q.nome)}${c.numero ? ` · nº ${esc(c.numero)}` : ''}</span>
+      <span class="chipc" style="--c:${q.cor}">${esc(q.nome)}<span id="numOrc">${c.numero ? ` · nº ${esc(c.numero)}` : ''}</span></span>
       <span></span>
       <button type="button" class="link strong" data-act="close">Fechar</button>
     </div>
@@ -354,7 +508,7 @@ function novoQuadro() {
     values: { cor: CORES[1 + (db.quadros.length % (CORES.length - 1))].v },
     onSave: (d) => {
       const m = MODELOS[d.modelo];
-      const q = { id: uid(), nome: d.nome, cor: d.cor || COR.Azul, tipo: m.tipo, colunas: m.cols() };
+      const q = { id: uid(), nome: d.nome, cor: d.cor || COR.Azul, tipo: m.tipo, colunas: m.cols(), posicao: Math.max(-1, ...db.quadros.map((x) => x.posicao || 0)) + 1 };
       db.quadros.push(q);
       setTimeout(() => { location.hash = '#quadro/' + q.id; });
     },
@@ -603,12 +757,41 @@ function viewAjustes() {
     ${sec('Clientes', cls.length)}
     ${box(cls.map((c) => `<div class="row" data-cli="${c.id}"><span class="avatar" style="--c:${corDe(c.id)}">${esc(iniciais(c.nome))}</span><div class="main"><div class="title">${esc(c.nome)}</div>${c.contato || c.telefone ? `<div class="meta">${esc([c.contato, c.telefone].filter(Boolean).join(' · '))}</div>` : ''}</div></div>`), 'Nenhum cliente.')}
     <div class="actions"><button class="btn" data-novo-cli>+ Novo cliente</button></div>
+    ${sec('Equipe')}
+    ${equipe ? box([
+      ...equipe.membros.map((m) => `<div class="row" style="cursor:default"><span class="avatar" style="--c:${corDe(m.user_id)}">${esc(iniciais(m.nome))}</span><div class="main"><div class="title">${esc(m.nome || 'Membro')}</div><div class="meta">${m.papel === 'dono' ? 'Dono' : 'Membro'}${m.user_id === sessao?.user.id ? ' · você' : ''}</div></div></div>`),
+      ...equipe.convites.map((c) => `<div class="row" style="cursor:default"><span class="avatar">✉︎</span><div class="main"><div class="title">${esc(c.email)}</div><div class="meta">Convite pendente — a pessoa cria a conta no app com este e-mail</div></div><button class="btn sm" data-desconvidar="${esc(c.email)}">Cancelar</button></div>`),
+    ]) : '<div class="card"><div class="empty">Carregando…</div></div>'}
+    <div class="actions"><button class="btn" data-convidar>+ Convidar pessoa</button></div>
     ${sec('Notificações')}
-    <div class="card"><div class="settings-note">Os avisos de prazo no iPhone entram na fase 2, quando o app for publicado online.</div></div>
-    ${sec('Backup')}
-    <div class="card"><div class="settings-note">Nesta fase os dados ficam só neste aparelho. Exporte um backup de vez em quando.</div></div>
-    <div class="actions"><button class="btn" data-export>Exportar backup</button><label class="btn">Importar backup<input type="file" accept="application/json,.json" data-import hidden></label></div>
+    <div class="card"><div class="settings-note" id="notifNota">Avisos de prazo neste aparelho: em breve.</div></div>
+    ${sec('Conta')}
+    <div class="card"><div class="settings-note">Conectado como <strong style="color:var(--text)">${esc(sessao?.user.email || '')}</strong></div></div>
+    <div class="actions"><button class="btn" data-export>Exportar backup</button><button class="btn danger" data-sair>Sair</button></div>
   </div>`;
+}
+
+let equipe = null;
+async function carregarEquipe() {
+  const [m, c] = await Promise.all([
+    sb.from('membros').select('user_id,nome,papel').eq('workspace_id', ws).order('criado_em'),
+    sb.from('convites').select('email').eq('workspace_id', ws).order('criado_em'),
+  ]);
+  equipe = { membros: m.data || [], convites: c.data || [] };
+  if (rota().r === 'ajustes') atualizarTela();
+}
+
+function viewLogin() {
+  return `<div class="login"><form class="login-box" id="loginForm">
+    <div class="login-logo">OCM Filmes</div>
+    <p class="sub" style="margin:4px 0 22px">Entre para ver seus quadros</p>
+    <label class="field"><span>E-mail</span><input name="email" type="email" autocomplete="username" required></label>
+    <label class="field"><span>Senha</span><input name="senha" type="password" autocomplete="current-password" minlength="6" required></label>
+    <button class="btn primary block" name="acao" value="entrar">Entrar</button>
+    <button class="btn block" name="acao" value="criar" style="margin-top:8px">Criar conta</button>
+    <p class="login-msg" id="loginMsg"></p>
+    <button type="button" class="link" data-esqueci style="width:100%;font-size:14px">Esqueci a senha</button>
+  </form></div>`;
 }
 
 /* =========================================================
@@ -739,6 +922,16 @@ function render() {
   if (drag) return;
   const { r, arg } = rota();
   const main = $('#view');
+  document.body.classList.toggle('deslogado', !sessao);
+  if (!sessao || !carregado) {
+    main.className = '';
+    main.dataset.rota = '';
+    main.innerHTML = !sessao ? viewLogin() : '<div class="page"><div class="empty" style="text-align:center;margin-top:30vh">Carregando seus quadros…</div></div>';
+    $('#topbar').innerHTML = ''; $('#tabbar').innerHTML = ''; $('#side').innerHTML = '';
+    $('#fab').hidden = true;
+    return;
+  }
+  if (r === 'ajustes' && !equipe) carregarEquipe();
   const q = r === 'quadro' ? quadro(arg) : null;
   const scrollBoard = $('#board')?.scrollLeft || 0;
   const mesmaTela = main.dataset.rota === location.hash;
@@ -753,6 +946,8 @@ function render() {
   $('#topbar').innerHTML = q
     ? `<a class="iconbtn" href="#quadros" aria-label="Voltar">${ICON.back}</a><div class="t"><div class="brand">OCM Filmes</div><div class="sub">Quadro · ${esc(q.nome)}</div></div>`
     : `<div class="t"><div class="brand">OCM Filmes</div></div>`;
+  $('#topbar').insertAdjacentHTML('beforeend', '<span id="sync" class="sync"></span>');
+  marcarSync(syncEstado);
 
   // abas (celular)
   const tab = r === 'quadro' ? 'quadros' : r;
@@ -803,6 +998,30 @@ document.addEventListener('click', (e) => {
   if ((x = el('[data-mes]'))) { ui.mes = shiftMonth(ui.mes, Number(x.dataset.mes)); return render(); }
   if ((x = el('[data-cli]'))) return editarCliente(x.dataset.cli);
   if (el('[data-novo-cli]')) return editarCliente(null);
+  if (el('[data-sair]') && confirm('Sair da conta neste aparelho?')) return sb.auth.signOut();
+  if (el('[data-convidar]')) {
+    const email = (prompt('E-mail da pessoa que você quer convidar') || '').trim().toLowerCase();
+    if (!email) return;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return alert('E-mail inválido.');
+    sb.from('convites').insert({ email, workspace_id: ws }).then(({ error }) => {
+      if (error && error.code !== '23505') return alert('Não consegui convidar: ' + error.message);
+      alert(`Convite criado. Mande o link do app para ${email} e peça para tocar em "Criar conta" com esse e-mail.`);
+      carregarEquipe();
+    });
+    return;
+  }
+  if ((x = el('[data-desconvidar]'))) {
+    sb.from('convites').delete().eq('workspace_id', ws).eq('email', x.dataset.desconvidar).then(() => carregarEquipe());
+    return;
+  }
+  if (el('[data-esqueci]')) {
+    const email = $('#loginForm')?.elements.email.value.trim() || (prompt('Seu e-mail') || '').trim();
+    if (!email) return;
+    sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname }).then(({ error }) => {
+      $('#loginMsg').textContent = error ? 'Erro: ' + error.message : 'Enviamos um link para criar uma senha nova. Veja seu e-mail.';
+    });
+    return;
+  }
   if (el('[data-export]')) {
     const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
     const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `ocm-backup-${today()}.json` });
@@ -810,7 +1029,23 @@ document.addEventListener('click', (e) => {
   }
 });
 
-document.addEventListener('submit', (e) => {
+document.addEventListener('submit', async (e) => {
+  if (e.target.id === 'loginForm') {
+    e.preventDefault();
+    const f = e.target, msg = $('#loginMsg');
+    const email = f.elements.email.value.trim(), senha = f.elements.senha.value;
+    const acao = e.submitter?.value || 'entrar';
+    msg.textContent = 'Aguarde…';
+    if (acao === 'criar') {
+      const { data, error } = await sb.auth.signUp({ email, password: senha, options: { emailRedirectTo: location.origin + location.pathname } });
+      if (error) { msg.textContent = traduzErro(error); return; }
+      if (!data.session) msg.textContent = 'Conta criada! Abra o e-mail que enviamos, toque no link de confirmação e depois volte aqui e toque em Entrar.';
+    } else {
+      const { error } = await sb.auth.signInWithPassword({ email, password: senha });
+      if (error) msg.textContent = traduzErro(error);
+    }
+    return;
+  }
   const f = e.target.closest('[data-quick]');
   if (!f) return;
   e.preventDefault();
@@ -834,18 +1069,37 @@ document.addEventListener('change', async (e) => {
     c.ordem = Math.max(-1, ...cardsDe(s.value).filter((x) => x.id !== c.id).map((x) => x.ordem)) + 1;
     save(); return render();
   }
-  const imp = e.target.closest('[data-import]');
-  if (imp?.files[0]) {
-    try {
-      const novo = JSON.parse(await imp.files[0].text());
-      if (!Array.isArray(novo.quadros) || !Array.isArray(novo.cards)) throw new Error('arquivo não parece um backup deste app');
-      if (confirm('Substituir todos os dados deste aparelho pelo backup?')) { db = novo; save(); render(); }
-    } catch (err) { alert('Não consegui importar: ' + err.message); }
-  }
 });
 
+function traduzErro(e) {
+  const m = String(e.message || e);
+  if (/Invalid login credentials/i.test(m)) return 'E-mail ou senha incorretos.';
+  if (/Email not confirmed/i.test(m)) return 'Falta confirmar o e-mail: abra o link que enviamos e tente de novo.';
+  if (/already registered/i.test(m)) return 'Esse e-mail já tem conta. Toque em Entrar.';
+  if (/at least 6/i.test(m)) return 'A senha precisa ter pelo menos 6 caracteres.';
+  if (/rate limit/i.test(m)) return 'Muitas tentativas. Espere alguns minutos e tente de novo.';
+  return 'Erro: ' + m;
+}
+
 window.addEventListener('hashchange', () => { $('#view').scrollTop = 0; render(); });
-document.addEventListener('visibilitychange', () => { if (!document.hidden && !sheet.open) render(); });
+document.addEventListener('visibilitychange', async () => {
+  if (document.hidden || !ws || sheet.open || drag || temPendente()) return;
+  try { await carregarTudo(); render(); } catch { /* sem conexão: fica com o que já tem */ }
+});
+window.addEventListener('online', () => save());
+
+sb.auth.onAuthStateChange((evento, s) => {
+  const antes = sessao?.user.id;
+  sessao = s;
+  if (evento === 'PASSWORD_RECOVERY') {
+    setTimeout(async () => {
+      const nova = prompt('Digite sua senha nova (mínimo 6 caracteres)');
+      if (nova) { const { error } = await sb.auth.updateUser({ password: nova }); alert(error ? traduzErro(error) : 'Senha alterada!'); }
+    }, 300);
+  }
+  if (!s) { ws = null; carregado = false; equipe = null; canal?.unsubscribe(); db = { clientes: [], quadros: [], cards: [], lancamentos: [] }; render(); return; }
+  if (s.user.id !== antes) { carregado = false; render(); setTimeout(iniciarSessao, 0); }
+});
 render();
 
 if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => {});
