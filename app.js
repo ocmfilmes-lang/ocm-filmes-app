@@ -764,11 +764,58 @@ function viewAjustes() {
     ]) : '<div class="card"><div class="empty">Carregando…</div></div>'}
     <div class="actions"><button class="btn" data-convidar>+ Convidar pessoa</button></div>
     ${sec('Notificações')}
-    <div class="card"><div class="settings-note" id="notifNota">Avisos de prazo neste aparelho: em breve.</div></div>
+    <div id="notifBox">${notifHTML()}</div>
     ${sec('Conta')}
     <div class="card"><div class="settings-note">Conectado como <strong style="color:var(--text)">${esc(sessao?.user.email || '')}</strong></div></div>
     <div class="actions"><button class="btn" data-export>Exportar backup</button><button class="btn danger" data-sair>Sair</button></div>
   </div>`;
+}
+
+/* ---------- notificações ---------- */
+const VAPID = 'BDcyCZU1dZO8zpyHwqZdVtnUvDl3Ck9-O8Q14HbXZdfsg96JUQb8C3Ng-f59WxnxtMOiOi0VWpeasDFCX2jauXg';
+const ehIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const instalado = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+let notifAtiva = null; // null = ainda verificando
+function notifHTML() {
+  const nota = (t) => `<div class="card"><div class="settings-note">${t}</div></div>`;
+  if (ehIOS && !instalado()) return nota('Para receber avisos no iPhone, primeiro adicione o app à Tela de Início (Safari → Compartilhar → <strong>Adicionar à Tela de Início</strong>) e abra por lá.');
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return nota('Este navegador não aceita notificações.');
+  if (Notification.permission === 'denied') return nota('As notificações foram bloqueadas. Libere em Ajustes do iPhone → Notificações → OCM.');
+  if (notifAtiva === null) { checarNotif(); return nota('Verificando…'); }
+  if (!notifAtiva) return nota('Receba todo dia às 8h um resumo do que está atrasado, vence hoje ou vence amanhã.') + '<div class="actions"><button class="btn primary" data-notif-ativar>Ativar notificações neste aparelho</button></div>';
+  return nota('✓ Ativadas neste aparelho. Todo dia às 8h chega um resumo dos prazos (só quando tiver algo vencendo).') + '<div class="actions"><button class="btn" data-notif-teste>Enviar notificação de teste</button><button class="btn danger" data-notif-desativar>Desativar</button></div>';
+}
+async function checarNotif() {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    notifAtiva = !!(await reg.pushManager.getSubscription()) && Notification.permission === 'granted';
+  } catch { notifAtiva = false; }
+  const box = $('#notifBox'); if (box) box.innerHTML = notifHTML();
+}
+const b64u = (s) => { const p = '='.repeat((4 - (s.length % 4)) % 4); const b = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(b, (c) => c.charCodeAt(0)); };
+async function ativarNotif() {
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { alert('Sem permissão, não dá para avisar. Você pode liberar depois nos Ajustes do aparelho.'); return checarNotif(); }
+    const reg = await navigator.serviceWorker.ready;
+    const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(VAPID) }));
+    const j = sub.toJSON();
+    const { error } = await sb.from('push_inscricoes').upsert({ endpoint: j.endpoint, user_id: sessao.user.id, workspace_id: ws, p256dh: j.keys.p256dh, auth: j.keys.auth });
+    if (error) throw error;
+    notifAtiva = true;
+    const box = $('#notifBox'); if (box) box.innerHTML = notifHTML();
+  } catch (e) { alert('Não consegui ativar: ' + (e.message || e)); }
+}
+async function testarNotif() {
+  const { data, error } = await sb.functions.invoke('avisos', { body: { teste: true } });
+  if (error || !data?.enviados) alert('O teste não foi enviado' + (error ? ': ' + error.message : '. Tente desativar e ativar de novo.'));
+}
+async function desativarNotif() {
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.getSubscription();
+  if (sub) { await sb.from('push_inscricoes').delete().eq('endpoint', sub.endpoint); await sub.unsubscribe(); }
+  notifAtiva = false;
+  const box = $('#notifBox'); if (box) box.innerHTML = notifHTML();
 }
 
 let equipe = null;
@@ -998,6 +1045,9 @@ document.addEventListener('click', (e) => {
   if ((x = el('[data-mes]'))) { ui.mes = shiftMonth(ui.mes, Number(x.dataset.mes)); return render(); }
   if ((x = el('[data-cli]'))) return editarCliente(x.dataset.cli);
   if (el('[data-novo-cli]')) return editarCliente(null);
+  if (el('[data-notif-ativar]')) return ativarNotif();
+  if (el('[data-notif-teste]')) return testarNotif();
+  if (el('[data-notif-desativar]')) return desativarNotif();
   if (el('[data-sair]') && confirm('Sair da conta neste aparelho?')) return sb.auth.signOut();
   if (el('[data-convidar]')) {
     const email = (prompt('E-mail da pessoa que você quer convidar') || '').trim().toLowerCase();
