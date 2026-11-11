@@ -33,16 +33,19 @@ const fmtDateFull = (iso) => (iso ? parseISO(iso).toLocaleDateString('pt-BR') : 
 const monthLabel = (ym) => cap(parseISO(ym + '-01').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }));
 const shiftMonth = (ym, n) => { const d = parseISO(ym + '-01'); d.setMonth(d.getMonth() + n); return isoDate(d).slice(0, 7); };
 
-function prazoBadge(iso, done) {
+const agoraHHMM = () => { const d = new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+function prazoBadge(iso, done, hora) {
   if (!iso) return '';
-  if (done) return `<span class="badge ok">✓ ${fmtDate(iso)}</span>`;
+  const h = hora ? ' ' + hora : '';
+  if (done) return `<span class="badge ok">✓ ${fmtDate(iso)}${h}</span>`;
   const n = diffDays(iso);
-  if (n < 0) return `<span class="badge danger">${fmtDate(iso)} · atrasado</span>`;
-  if (n === 0) return `<span class="badge warn">Hoje</span>`;
-  if (n === 1) return `<span class="badge warn">Amanhã</span>`;
-  if (n <= 7) return `<span class="badge info">${fmtDate(iso)}</span>`;
-  return `<span class="badge">${fmtDate(iso)}</span>`;
+  if (n < 0) return `<span class="badge danger">${fmtDate(iso)}${h} · atrasado</span>`;
+  if (n === 0) return `<span class="badge ${hora && hora < agoraHHMM() ? 'danger' : 'warn'}">Hoje${h}</span>`;
+  if (n === 1) return `<span class="badge warn">Amanhã${h}</span>`;
+  if (n <= 7) return `<span class="badge info">${fmtDate(iso)}${h}</span>`;
+  return `<span class="badge">${fmtDate(iso)}${h}</span>`;
 }
+const quando = (c) => (c.prazo || '9999-99-99') + ' ' + (c.hora || '99:99');
 
 /* =========================================================
    Cores e ícones
@@ -53,6 +56,7 @@ const CORES = [
   { nome: 'Laranja', v: '#f07c12' }, { nome: 'Rosa', v: '#e2489a' }, { nome: 'Vermelho', v: '#e2483d' },
 ];
 const COR = Object.fromEntries(CORES.map((c) => [c.nome, c.v]));
+const LEMBRETES = [{ value: '', label: 'Sem lembrete' }, { value: '0', label: 'Na hora' }, { value: '5', label: '5 min antes' }, { value: '15', label: '15 min antes' }, { value: '30', label: '30 min antes' }, { value: '60', label: '1 hora antes' }, { value: '120', label: '2 horas antes' }, { value: '1440', label: '1 dia antes' }];
 const PRIO = { Urgente: COR.Vermelho, Alta: COR.Laranja, Média: COR.Azul, Baixa: COR.Cinza };
 const corDe = (s) => CORES[1 + (hash(s) % (CORES.length - 1))].v;
 
@@ -81,7 +85,7 @@ function novoCard(quadro, colunaId, titulo, extra = {}, ordem = 0) {
   return {
     id: uid(), quadroId: quadro.id, colunaId, ordem, titulo,
     descricao: '', clienteId: '', prazo: '', prioridade: '', responsavel: '', link: '',
-    checklist: [], numero: '', itens: [], desconto: 0, data: '', validade: '', condicoes: '', lancado: false,
+    checklist: [], hora: '', lembreteMin: '', numero: '', itens: [], desconto: 0, data: '', validade: '', condicoes: '', lancado: false,
     criadoEm: new Date().toISOString(), ...extra,
   };
 }
@@ -99,12 +103,12 @@ const TABELAS = {
     id: 'id', quadroId: 'quadro_id', colunaId: 'coluna_id', ordem: 'ordem', titulo: 'titulo', descricao: 'descricao',
     clienteId: 'cliente_id', prazo: 'prazo', prioridade: 'prioridade', responsavel: 'responsavel', link: 'link',
     checklist: 'checklist', numero: 'numero', itens: 'itens', desconto: 'desconto', data: 'data', validade: 'validade',
-    condicoes: 'condicoes', lancado: 'lancado',
+    condicoes: 'condicoes', lancado: 'lancado', hora: 'hora', lembreteMin: 'lembrete_min',
   },
   lancamentos: { id: 'id', tipo: 'tipo', descricao: 'descricao', valor: 'valor', data: 'data', categoria: 'categoria', clienteId: 'cliente_id', pago: 'pago', cardId: 'card_id' },
 };
 const ORDEM = ['clientes', 'quadros', 'cards', 'lancamentos'];
-const ANULAVEIS = new Set(['cliente_id', 'prazo', 'data', 'validade', 'card_id', 'numero']);
+const ANULAVEIS = new Set(['cliente_id', 'prazo', 'data', 'validade', 'card_id', 'numero', 'hora', 'lembrete_min']);
 const NUMEROS = new Set(['desconto', 'valor', 'ordem', 'posicao']);
 const estavel = (v) => (Array.isArray(v) ? `[${v.map(estavel).join(',')}]` : v && typeof v === 'object' ? `{${Object.keys(v).sort().map((k) => JSON.stringify(k) + ':' + estavel(v[k])).join(',')}}` : JSON.stringify(v ?? null));
 
@@ -121,6 +125,7 @@ function paraLinha(nome, o) {
     let v = o[k];
     if (v === undefined) continue;
     if (ANULAVEIS.has(c) && (v === '' || v == null)) v = null;
+    else if (c === 'lembrete_min') v = Number(v);
     if (NUMEROS.has(c)) v = Number(v) || 0;
     r[c] = v;
   }
@@ -131,6 +136,8 @@ function deLinha(nome, r) {
   for (const [k, c] of Object.entries(TABELAS[nome])) {
     let v = r[c];
     if (ANULAVEIS.has(c) && v == null) v = '';
+    else if (c === 'hora') v = String(v).slice(0, 5);
+    else if (c === 'lembrete_min') v = String(v);
     if (NUMEROS.has(c)) v = Number(v) || 0;
     o[k] = v;
   }
@@ -387,7 +394,9 @@ function openCard(id) {
         <select name="colunaId">${q.colunas.map((k) => `<option value="${k.id}"${k.id === c.colunaId ? ' selected' : ''}>${esc(k.nome)}</option>`).join('')}</select></label>
       <div class="grid2">
         ${fieldHTML({ name: 'clienteId', label: 'Cliente', type: 'select', options: clienteOpts }, c.clienteId)}
-        ${fieldHTML({ name: 'prazo', label: isOrc ? 'Retorno até' : 'Prazo', type: 'date' }, c.prazo)}
+        ${fieldHTML({ name: 'prazo', label: isOrc ? 'Retorno até' : 'Data', type: 'date' }, c.prazo)}
+        ${fieldHTML({ name: 'hora', label: 'Hora', type: 'time' }, c.hora)}
+        ${fieldHTML({ name: 'lembreteMin', label: 'Lembrete', type: 'select', options: LEMBRETES }, c.lembreteMin)}
         ${fieldHTML({ name: 'prioridade', label: 'Prioridade', type: 'select', options: [{ value: '', label: 'Nenhuma' }, ...Object.keys(PRIO)] }, c.prioridade)}
         ${fieldHTML({ name: 'responsavel', label: 'Responsável', placeholder: 'Nome' }, c.responsavel)}
       </div>
@@ -433,7 +442,10 @@ function openCard(id) {
       c.ordem = Math.max(-1, ...cardsDe(c.colunaId).filter((x) => x.id !== c.id).map((x) => x.ordem)) + 1;
       $('.status-big', sheetForm).style.setProperty('--c', coluna(q, c.colunaId).cor);
     }
-    Object.assign(c, { clienteId: f.clienteId.value, prazo: f.prazo.value, prioridade: f.prioridade.value, responsavel: f.responsavel.value.trim(), descricao: f.descricao.value, link: f.link.value.trim() });
+    if (f.hora.value && !f.prazo.value) f.prazo.value = today();
+    if (f.hora.value && !c.hora && !f.lembreteMin.value) f.lembreteMin.value = '30';
+    if (!f.hora.value) f.lembreteMin.value = '';
+    Object.assign(c, { hora: f.hora.value, lembreteMin: f.lembreteMin.value, clienteId: f.clienteId.value, prazo: f.prazo.value, prioridade: f.prioridade.value, responsavel: f.responsavel.value.trim(), descricao: f.descricao.value, link: f.link.value.trim() });
     if (isOrc) {
       Object.assign(c, { itens: readItens(), desconto: parseMoney(f.desconto.value), validade: f.validade.value, condicoes: f.condicoes.value });
       $('#itensTotal', sheetForm).textContent = `Total: ${money(orcTotal(c))}`;
@@ -605,7 +617,7 @@ function kcardHTML(c, q) {
     ${c.prioridade ? `<div class="labels"><span class="label" style="--c:${PRIO[c.prioridade]}">${esc(c.prioridade)}</span></div>` : ''}
     <div class="kt">${esc(c.titulo)}</div>
     <div class="km">${[
-      prazoBadge(c.prazo, done),
+      prazoBadge(c.prazo, done, c.hora),
       ck.length ? `<span class="badge${feitos === ck.length ? ' ok' : ''}">${ICON.check} ${feitos}/${ck.length}</span>` : '',
       c.descricao ? `<span class="badge" title="Tem descrição">${ICON.text}</span>` : '',
       q.tipo === 'orcamentos' && orcTotal(c) ? `<span class="badge num">${money(orcTotal(c))}</span>` : '',
@@ -623,7 +635,7 @@ function rowCardHTML(c) {
     <span class="bar" style="background:${q.cor}"></span>
     <div class="main">
       <div class="title">${esc(c.titulo)}</div>
-      <div class="meta"><span class="pill" style="--c:${k?.cor}">${esc(k?.nome)}</span>${prazoBadge(c.prazo, k?.concluida)}${cli ? `<span class="chipc" style="--c:${corDe(cli.id)}">${esc(cli.nome)}</span>` : ''}<span>${esc(q.nome)}</span></div>
+      <div class="meta"><span class="pill" style="--c:${k?.cor}">${esc(k?.nome)}</span>${prazoBadge(c.prazo, k?.concluida, c.hora)}${cli ? `<span class="chipc" style="--c:${corDe(cli.id)}">${esc(cli.nome)}</span>` : ''}<span>${esc(q.nome)}</span></div>
     </div>
     ${c.responsavel ? `<span class="avatar" style="--c:${corDe(c.responsavel)}">${esc(iniciais(c.responsavel))}</span>` : ''}
   </div>`;
@@ -644,7 +656,7 @@ function resumoMes(ym) {
 
 function viewInicio() {
   const t = today(), semana = addDays(t, 7);
-  const abertos = db.cards.filter((c) => c.prazo && !concluido(c)).sort((a, b) => a.prazo.localeCompare(b.prazo));
+  const abertos = db.cards.filter((c) => c.prazo && !concluido(c)).sort((a, b) => quando(a).localeCompare(quando(b)));
   const atrasados = abertos.filter((c) => c.prazo < t);
   const hoje = abertos.filter((c) => c.prazo === t);
   const prox = abertos.filter((c) => c.prazo > t && c.prazo <= semana);
@@ -703,10 +715,10 @@ function viewQuadro(id) {
             <div>${esc(c.titulo)}</div>
             <div><select class="status-sel" style="--c:${k.cor}" data-status="${c.id}">${q.colunas.map((x) => `<option value="${x.id}"${x.id === k.id ? ' selected' : ''}>${esc(x.nome)}</option>`).join('')}</select></div>
             <div class="tc-cli">${cli ? `<span class="chipc" style="--c:${corDe(cli.id)}">${esc(cli.nome)}</span>` : ''}</div>
-            <div class="tc-prazo">${prazoBadge(c.prazo, k.concluida)}</div>
+            <div class="tc-prazo">${prazoBadge(c.prazo, k.concluida, c.hora)}</div>
             <div class="tc-prio">${c.prioridade ? `<span class="prio" style="--c:${PRIO[c.prioridade]}">${esc(c.prioridade)}</span>` : ''}</div>
             ${isOrc ? `<div class="tc-val num">${money(orcTotal(c))}</div>` : ''}
-            <div class="tc-meta">${prazoBadge(c.prazo, k.concluida)}${c.prioridade ? `<span class="badge" style="color:${PRIO[c.prioridade]}">${esc(c.prioridade)}</span>` : ''}${cli ? `<span class="chipc" style="--c:${corDe(cli.id)}">${esc(cli.nome)}</span>` : ''}${isOrc ? `<span class="num">${money(orcTotal(c))}</span>` : ''}</div>
+            <div class="tc-meta">${prazoBadge(c.prazo, k.concluida, c.hora)}${c.prioridade ? `<span class="badge" style="color:${PRIO[c.prioridade]}">${esc(c.prioridade)}</span>` : ''}${cli ? `<span class="chipc" style="--c:${corDe(cli.id)}">${esc(cli.nome)}</span>` : ''}${isOrc ? `<span class="num">${money(orcTotal(c))}</span>` : ''}</div>
           </div>`; }).join('')}
           <form class="quick-add" data-quick="${k.id}"><input name="t" placeholder="+ Adicionar item" enterkeyhint="done"></form>
         </div></div>`;
