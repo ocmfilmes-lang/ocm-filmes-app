@@ -825,21 +825,25 @@ function viewFinanceiro() {
 
 function viewAjustes() {
   const cls = [...db.clientes].sort((a, b) => a.nome.localeCompare(b.nome));
-  return `<div class="page"><h1 style="margin:14px 0 4px">Ajustes</h1>
-    ${sec('Clientes', cls.length)}
-    ${box(cls.map((c) => `<div class="row" data-cli="${c.id}"><span class="avatar" style="--c:${corDe(c.id)}">${esc(iniciais(c.nome))}</span><div class="main"><div class="title">${esc(c.nome)}</div>${c.contato || c.telefone ? `<div class="meta">${esc([c.contato, c.telefone].filter(Boolean).join(' · '))}</div>` : ''}</div></div>`), 'Nenhum cliente.')}
-    <div class="actions"><button class="btn" data-novo-cli>+ Novo cliente</button></div>
-    ${sec('Equipe')}
-    ${equipe ? box([
-      ...equipe.membros.map((m) => `<div class="row" style="cursor:default"><span class="avatar" style="--c:${corDe(m.user_id)}">${esc(iniciais(m.nome))}</span><div class="main"><div class="title">${esc(m.nome || 'Membro')}</div><div class="meta">${m.papel === 'dono' ? 'Dono' : 'Membro'}${m.user_id === sessao?.user.id ? ' · você' : ''}</div></div></div>`),
-      ...equipe.convites.map((c) => `<div class="row" style="cursor:default"><span class="avatar">✉︎</span><div class="main"><div class="title">${esc(c.email)}</div><div class="meta">Convite pendente — a pessoa cria a conta no app com este e-mail</div></div><button class="btn sm" data-desconvidar="${esc(c.email)}">Cancelar</button></div>`),
-    ]) : '<div class="card"><div class="empty">Carregando…</div></div>'}
-    <div class="actions"><button class="btn" data-convidar>+ Convidar pessoa</button></div>
-    ${sec('Notificações')}
+  const ini = (nome, id) => `<span class="li-i" style="--c:${corDe(id)}">${esc(iniciais(nome))}</span>`;
+  return `<div class="page">
+    <div class="hero"><div class="mo q">Ajustes</div><h1><em>Seus</em><br>ajustes.</h1><div class="mo q">Clientes, equipe e avisos</div></div>
+    <div class="mo q sec">Clientes · ${cls.length}</div>
+    <div class="livro">${cls.length ? cls.map((c) => `<div class="li" data-cli="${c.id}">${ini(c.nome, c.id)}<span class="li-t"><span class="li-n">${esc(c.nome)}</span>${c.contato || c.telefone ? `<span class="li-m">${esc([c.contato, c.telefone].filter(Boolean).join(' · '))}</span>` : ''}</span><span class="li-a">›</span></div>`).join('') : '<div class="ag vazio">Nenhum cliente.</div>'}</div>
+    <button class="pilula" data-novo-cli>+ Novo cliente</button>
+    <div class="mo q sec">Equipe</div>
+    <div class="livro">${equipe ? [
+      ...equipe.membros.map((m) => `<div class="li" style="cursor:default">${ini(m.nome || 'M', m.user_id)}<span class="li-t"><span class="li-n">${esc(m.nome || 'Membro')}</span><span class="li-m">${m.papel === 'dono' ? 'Dono' : 'Membro'}${m.user_id === sessao?.user.id ? ' · você' : ''}</span></span></div>`),
+      ...equipe.convites.map((c) => `<div class="li" style="cursor:default"><span class="li-i">✉︎</span><span class="li-t"><span class="li-n">${esc(c.email)}</span><span class="li-m">Convite pendente — a pessoa cria a conta no app com este e-mail</span></span><button class="pilula sm" data-desconvidar="${esc(c.email)}">Cancelar</button></div>`),
+    ].join('') : '<div class="ag vazio">Carregando…</div>'}</div>
+    <button class="pilula" data-convidar>+ Convidar pessoa</button>
+    <div class="mo q sec">Notificações</div>
     <div id="notifBox">${notifHTML()}</div>
-    ${sec('Conta')}
-    <div class="card"><div class="settings-note">Conectado como <strong style="color:var(--text)">${esc(sessao?.user.email || '')}</strong></div></div>
-    <div class="actions"><button class="btn" data-export>Exportar backup</button><button class="btn danger" data-sair>Sair</button></div>
+    <div class="bloco madeira conta">
+      <span class="mo q">Conectado como</span>
+      <span class="conta-e">${esc(sessao?.user.email || '')}</span>
+      <span class="conta-b"><button class="pilula" data-export>Exportar backup</button><button class="pilula" data-sair>Sair</button></span>
+    </div>
   </div>`;
 }
 
@@ -849,13 +853,13 @@ const ehIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platfor
 const instalado = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 let notifAtiva = null; // null = ainda verificando
 function notifHTML() {
-  const nota = (t) => `<div class="card"><div class="settings-note">${t}</div></div>`;
+  const nota = (t) => `<p class="nota">${t}</p>`;
   if (ehIOS && !instalado()) return nota('Para receber avisos no iPhone, primeiro adicione o app à Tela de Início (Safari → Compartilhar → <strong>Adicionar à Tela de Início</strong>) e abra por lá.');
   if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return nota('Este navegador não aceita notificações.');
   if (Notification.permission === 'denied') return nota('As notificações foram bloqueadas. Libere em Ajustes do iPhone → Notificações → OCM.');
   if (notifAtiva === null) { checarNotif(); return nota('Verificando…'); }
-  if (!notifAtiva) return nota('Receba todo dia às 8h um resumo do que está atrasado, vence hoje ou vence amanhã.') + '<div class="actions"><button class="btn primary" data-notif-ativar>Ativar notificações neste aparelho</button></div>';
-  return nota('✓ Ativadas neste aparelho. Todo dia às 8h chega um resumo dos prazos (só quando tiver algo vencendo).') + '<div class="actions"><button class="btn" data-notif-teste>Enviar notificação de teste</button><button class="btn danger" data-notif-desativar>Desativar</button></div>';
+  if (!notifAtiva) return nota('Receba todo dia às 8h um resumo do que está atrasado, vence hoje ou vence amanhã.') + '<div class="pilulas"><button class="pilula cheia" data-notif-ativar>Ativar notificações neste aparelho</button></div>';
+  return nota('✓ Ativadas neste aparelho. Todo dia às 8h chega um resumo dos prazos (só quando tiver algo vencendo).') + '<div class="pilulas"><button class="pilula" data-notif-teste>Enviar teste</button><button class="pilula" data-notif-desativar>Desativar</button></div>';
 }
 async function checarNotif() {
   try {

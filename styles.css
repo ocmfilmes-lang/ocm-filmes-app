@@ -622,3 +622,25 @@ main.board-mode { background: none; }
 .lc-v.ent { color: var(--ok); }
 .lc-v.sai { color: var(--text); }
 .lc.pago .lc-n { color: color-mix(in srgb, var(--text) 80%, var(--muted)); }
+
+/* ---------- ajustes ---------- */
+.li { display: flex; align-items: center; gap: 12px; padding: 13px 2px; border-top: 1px solid var(--line); cursor: pointer; }
+.li:hover { background: var(--surface); }
+.li-i { width: 34px; height: 34px; border-radius: 50%; flex: none; display: grid; place-items: center; font-family: var(--mono); font-size: 11px; color: var(--text); border: 1px solid color-mix(in srgb, var(--c, var(--muted)) 70%, transparent); background: color-mix(in srgb, var(--c, var(--muted)) 14%, transparent); }
+.li-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.li-n { font-weight: 600; font-size: 16px; letter-spacing: -.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.li-m { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.li-a { font-family: var(--mono); color: var(--muted); }
+.pilula { display: inline-flex; align-items: center; margin-top: 12px; background: none; border: 1px solid var(--line-strong); border-radius: 999px; padding: 8px 14px; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text); white-space: nowrap; }
+.pilula:hover { background: var(--linho); color: var(--linho-txt); border-color: var(--linho); }
+.pilula.sm { margin-top: 0; padding: 5px 10px; font-size: 10px; }
+.pilula.cheia { background: var(--linho); color: var(--linho-txt); border-color: var(--linho); }
+.pilulas { display: flex; flex-wrap: wrap; gap: 8px; }
+.nota { margin: 12px 2px 0; color: color-mix(in srgb, var(--text) 80%, var(--muted)); font-size: 15px; line-height: 1.5; max-width: 520px; }
+.nota strong { color: var(--text); }
+.bloco.madeira { background: var(--madeira); color: var(--madeira-txt); }
+.conta { margin-top: 34px; gap: 8px; min-height: 0; }
+.conta-e { font-family: var(--serif); font-weight: 300; font-size: 24px; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.conta-b { display: flex; gap: 8px; flex-wrap: wrap; }
+.conta .pilula { color: inherit; border-color: color-mix(in srgb, currentColor 35%, transparent); }
+.conta .pilula:hover { background: var(--madeira-txt); color: var(--madeira); }
