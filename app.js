@@ -220,12 +220,25 @@ async function carregarTudo() {
   db = novo;
   const { data: rs } = await sb.from('resumos').select('*').eq('workspace_id', ws).order('criado_em', { ascending: false }).limit(5);
   resumos = rs || [];
+  await carregarTempos();
   for (const n of ORDEM) snap[n] = new Map(db[n].map((o) => [o.id, assinatura(n, o)]));
   carregado = true;
 }
 
 let canal = null;
 let resumos = [];
+let tempos = new Map(); // card_id -> segundos (vindo do rastreador do Mac)
+async function carregarTempos() {
+  const { data } = await sb.from('tempo_por_card').select('card_id,segundos').eq('workspace_id', ws);
+  tempos = new Map((data || []).map((t) => [t.card_id, t.segundos]));
+}
+let tempoTimer = null;
+const tempoMudou = () => { clearTimeout(tempoTimer); tempoTimer = setTimeout(async () => { await carregarTempos(); atualizarTela(); }, 2500); };
+function duracao(seg) {
+  const m = Math.round((seg || 0) / 60);
+  if (m < 60) return m + 'min';
+  return Math.floor(m / 60) + 'h' + (m % 60 ? String(m % 60).padStart(2, '0') : '');
+}
 function assinarAoVivo() {
   canal?.unsubscribe();
   canal = sb.channel('ws-' + ws);
@@ -235,6 +248,7 @@ function assinarAoVivo() {
     canal.on('postgres_changes', { event: 'DELETE', schema: 'public', table: n }, (p) => saiu(n, p.old?.id));
   }
   canal.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'resumos', filter: `workspace_id=eq.${ws}` }, (p) => { resumos.unshift(p.new); resumos = resumos.slice(0, 5); atualizarTela(); });
+  canal.on('postgres_changes', { event: '*', schema: 'public', table: 'tempos', filter: `workspace_id=eq.${ws}` }, tempoMudou);
   canal.on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'resumos' }, (p) => { resumos = resumos.filter((r) => r.id !== p.old?.id); atualizarTela(); });
   canal.subscribe();
 }
@@ -407,6 +421,7 @@ function openCard(id) {
       <textarea class="card-title" name="titulo" rows="1" placeholder="Título do cartão">${esc(c.titulo)}</textarea>
       <label class="field status-big" style="--c:${colAtual?.cor}"><span>Status</span>
         <select name="colunaId">${q.colunas.map((k) => `<option value="${k.id}"${k.id === c.colunaId ? ' selected' : ''}>${esc(k.nome)}</option>`).join('')}</select></label>
+      ${tempos.get(c.id) >= 60 ? `<p class="tempo-ficha"><span class="mo q">Tempo registrado</span><b>${duracao(tempos.get(c.id))}</b></p>` : ''}
       <div class="grid2">
         ${fieldHTML({ name: 'clienteId', label: 'Cliente', type: 'select', options: clienteOpts }, c.clienteId)}
         ${fieldHTML({ name: 'prazo', label: isOrc ? 'Retorno até' : 'Data', type: 'date' }, c.prazo)}
@@ -638,6 +653,7 @@ function kcardHTML(c, q) {
     <div class="km">${[
       prazoTxt(c.prazo, done, c.hora),
       ck.length ? `<span class="kd${feitos === ck.length ? ' ok' : ''}">${feitos}/${ck.length}</span>` : '',
+      tempos.get(c.id) >= 60 ? `<span class="kd tempo" title="Tempo registrado no Mac">◷ ${duracao(tempos.get(c.id))}</span>` : '',
       c.descricao ? `<span class="kd" title="Tem descrição">${ICON.text}</span>` : '',
       cli ? `<span class="kcli">${esc(cli.nome)}</span>` : '',
       c.responsavel ? `<span class="avatar" style="--c:${corDe(c.responsavel)}" title="${esc(c.responsavel)}">${esc(iniciais(c.responsavel))}</span>` : '',
