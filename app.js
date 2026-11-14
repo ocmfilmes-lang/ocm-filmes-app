@@ -785,28 +785,41 @@ function viewQuadro(id) {
 function viewFinanceiro() {
   const ym = ui.mes, r = resumoMes(ym);
   const ls = [...r.ls].sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+  const pend = ls.filter((l) => !l.pago), feitos = ls.filter((l) => l.pago);
+  const curto = (v) => money(v).replace(',00', '');
+  const pct = (a, b) => (b ? Math.min(100, Math.round((a / b) * 100)) : 0);
+  const [y, m] = ym.split('-').map(Number);
+  const nomeMes = (d) => cap(d.toLocaleDateString('pt-BR', { month: 'long' }));
+  const mes = nomeMes(new Date(y, m - 1, 1));
+  const ant = nomeMes(new Date(y, m - 2, 1)).slice(0, 3), seg = nomeMes(new Date(y, m, 1)).slice(0, 3);
+  const saldo = r.entRec - r.saiPag;
   const row = (l) => {
     const ent = l.tipo === 'Entrada';
     const atras = !l.pago && l.data && l.data < today();
     const cli = cliente(l.clienteId);
-    return `<div class="row" data-lanc="${l.id}">
-      <span class="bar" style="background:${ent ? COR.Verde : COR.Vermelho}"></span>
-      <div class="main"><div class="title">${esc(l.descricao)}</div>
-        <div class="meta"><span>${fmtDate(l.data)}</span><span>${esc(l.categoria || '')}</span>${cli ? `<span class="chipc" style="--c:${corDe(cli.id)}">${esc(cli.nome)}</span>` : ''}
-        ${l.pago ? `<span class="badge ok">${ent ? 'Recebido' : 'Pago'}</span>` : `<button class="badge${atras ? ' danger' : ''}" data-pago="${l.id}" style="border:0">${ent ? 'A receber' : 'A pagar'}${atras ? ' · atrasado' : ''} — marcar ✓</button>`}</div></div>
-      <div class="right num ${ent ? 'pos' : 'neg'}">${ent ? '+' : '−'} ${money(l.valor)}</div></div>`;
+    const meta = [l.categoria, cli && cli.nome].filter(Boolean).map(esc).join(' · ');
+    return `<div class="lc${atras ? ' late' : ''}${l.pago ? ' pago' : ''}" data-lanc="${l.id}">
+      <span class="lc-d">${fmtDate(l.data)}</span>
+      <span class="lc-t"><span class="lc-n">${esc(l.descricao)}</span>${meta ? `<span class="lc-m">${meta}</span>` : ''}
+        ${l.pago ? '' : `<button class="lc-ok" data-pago="${l.id}">${atras ? 'Atrasado · ' : ''}marcar ${ent ? 'recebido' : 'pago'}</button>`}</span>
+      <span class="lc-v ${ent ? 'ent' : 'sai'}">${ent ? '+' : '−'}${curto(l.valor)}</span>
+    </div>`;
   };
   return `<div class="page">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0">
-      <button class="iconbtn" data-mes="-1" aria-label="Mês anterior">‹</button><h1 style="font-size:20px">${monthLabel(ym)}</h1><button class="iconbtn" data-mes="1" aria-label="Próximo mês">›</button>
+    <div class="hero">
+      <div class="mes-nav"><button class="mo" data-mes="-1">‹ ${ant}</button><span class="mo">${y}</span><button class="mo" data-mes="1">${seg} ›</button></div>
+      <h1><em>${mes},</em><br><span class="${saldo < 0 ? 'neg' : ''}">${curto(saldo)}.</span></h1>
+      <div class="mo q">Saldo do mês — previsto ${curto(r.entPrev - r.saiPrev)}</div>
     </div>
-    <div class="stats four">
-      <div class="stat"><div class="k">Entradas</div><div class="v pos">${money(r.entRec)}</div><div class="s">previsto ${money(r.entPrev)}</div></div>
-      <div class="stat"><div class="k">Saídas</div><div class="v neg">${money(r.saiPag)}</div><div class="s">previsto ${money(r.saiPrev)}</div></div>
-      <div class="stat"><div class="k">Saldo realizado</div><div class="v">${money(r.entRec - r.saiPag)}</div></div>
-      <div class="stat"><div class="k">Saldo previsto</div><div class="v">${money(r.entPrev - r.saiPrev)}</div></div>
+    <div class="blocos fin">
+      <div class="bloco marinho"><span class="mo q">Entrou</span><span class="val">${curto(r.entRec)}</span><span class="barra"><span style="width:${pct(r.entRec, r.entPrev)}%"></span></span><span class="mo">de ${curto(r.entPrev)}</span></div>
+      <div class="bloco couro"><span class="mo q">Saiu</span><span class="val">${curto(r.saiPag)}</span><span class="barra"><span style="width:${pct(r.saiPag, r.saiPrev)}%"></span></span><span class="mo">de ${curto(r.saiPrev)}</span></div>
+      <div class="bloco linho largo"><span class="mo q">A receber</span><span class="val">${curto(r.entPrev - r.entRec)}</span><span class="mo q">A pagar</span><span class="val">${curto(r.saiPrev - r.saiPag)}</span></div>
     </div>
-    ${sec('Lançamentos', ls.length)}${box(ls.map(row), 'Nenhum lançamento neste mês. Toque em + para adicionar.')}
+    ${pend.length ? `<div class="mo q sec">Pendente</div><div class="livro">${pend.map(row).join('')}</div>` : ''}
+    <div class="mo q sec">Realizado</div>
+    <div class="livro">${feitos.length ? feitos.map(row).join('') : '<div class="ag vazio">Nada realizado neste mês ainda.</div>'}</div>
+    ${!ls.length ? '<p class="mo" style="margin-top:14px">Toque em + para lançar.</p>' : ''}
   </div>`;
 }
 
