@@ -644,3 +644,89 @@ main.board-mode { background: none; }
 .conta-b { display: flex; gap: 8px; flex-wrap: wrap; }
 .conta .pilula { color: inherit; border-color: color-mix(in srgb, currentColor 35%, transparent); }
 .conta .pilula:hover { background: var(--madeira-txt); color: var(--madeira); }
+
+/* ---------- ficha do cartão e formulários (couro e linho) ---------- */
+dialog#sheet { background: #0e0d0c; border-color: var(--line); border-radius: 22px 22px 0 0; box-shadow: 0 -30px 80px rgba(0, 0, 0, .7); }
+dialog#sheet::backdrop { background: rgba(0, 0, 0, .7); -webkit-backdrop-filter: none; backdrop-filter: none; }
+dialog#sheet::before { content: ""; display: block; width: 38px; height: 4px; border-radius: 4px; background: var(--line-strong); margin: 9px auto -4px; }
+@media (min-width: 700px) { dialog#sheet { border-radius: 22px; } dialog#sheet::before { display: none; } }
+.sheet-head { background: #0e0d0c; -webkit-backdrop-filter: none; backdrop-filter: none; padding: 12px 18px; }
+.sheet-head h2 { font-family: var(--serif); font-style: italic; font-weight: 300; font-size: 22px; letter-spacing: -.02em; }
+.sheet-head .link { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 7px 0; }
+.sheet-head .link.strong { color: var(--linho-txt); background: var(--linho); border-radius: 999px; padding: 7px 13px; font-weight: 400; }
+.sheet-head .chipc { background: none; border: 0; padding: 0; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 400; }
+.sheet-head .chipc::before { content: "\201C"; } .sheet-head .chipc::after { content: "\201D"; }
+.sheet-body { padding: 18px 20px calc(env(safe-area-inset-bottom) + 34px); }
+
+.field { margin-bottom: 20px; }
+.field > span { margin: 0 0 4px; color: var(--muted); }
+.field > span::before { content: "\201C"; } .field > span::after { content: "\201D"; }
+.field input, .field select, .field textarea, .item-row input, .ck-add {
+  background-color: transparent; border: 0; border-bottom: 1px solid var(--line-strong); border-radius: 0; padding: 9px 1px 10px;
+  font-size: 17px; box-shadow: none;
+}
+.field textarea { line-height: 1.45; resize: vertical; }
+.field input:focus, .field select:focus, .field textarea:focus, .item-row input:focus, .ck-add:focus { border-color: var(--linho); box-shadow: none; }
+.field input::placeholder, .field textarea::placeholder, .item-row input::placeholder, .ck-add::placeholder { color: color-mix(in srgb, var(--muted) 70%, transparent); }
+.field select { background-position: calc(100% - 8px) 50%, calc(100% - 3px) 50%; padding-right: 22px; }
+.field select option { background: #161412; color: var(--text); }
+.field input[type="date"], .field input[type="time"] { min-height: 44px; color-scheme: dark; }
+.grid2 { gap: 0 18px; }
+
+.card-title { font-size: clamp(28px, 8vw, 36px); font-weight: 800; letter-spacing: -.045em; line-height: 1.02; padding: 4px 0; margin: 4px 0 16px; border-radius: 0; border: 0; border-bottom: 1px solid transparent; }
+.card-title:focus { background: transparent; box-shadow: none; border-bottom-color: var(--linho); }
+.status-big { margin-bottom: 26px; }
+.status-big > span { display: none; }
+.status-big select {
+  border: 0; border-radius: 999px; padding: 10px 34px 10px 16px; width: auto; min-width: 60%;
+  background-color: color-mix(in srgb, var(--c) 34%, #1a1714); color: var(--text);
+  font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; font-weight: 400;
+  background-position: calc(100% - 20px) 50%, calc(100% - 15px) 50%;
+}
+
+.ck-progress { height: 2px; background: var(--line-strong); border-radius: 2px; margin: 6px 0 6px; }
+.ck-progress div { background: var(--linho); }
+.ck-item { padding: 10px 0; border-bottom: 1px solid var(--line); gap: 12px; }
+.ck-item span { font-size: 16px; }
+.field .ck-item input[type=checkbox], .check input {
+  -webkit-appearance: none; appearance: none; width: 20px; height: 20px; flex: none; margin: 0; padding: 0;
+  border: 1px solid var(--line-strong); border-radius: 6px; background: transparent; cursor: pointer;
+}
+.field .ck-item input[type=checkbox]:checked, .check input:checked {
+  background: var(--linho) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10.5l3.2 3L15 6.5' fill='none' stroke='%231c1712' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 16px no-repeat;
+  border-color: var(--linho);
+}
+.ck-add { font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; border-bottom-style: dashed; padding: 12px 1px; }
+
+.item-row { grid-template-columns: 1fr 46px 92px auto; gap: 10px; margin-bottom: 2px; }
+.item-row input { padding: 9px 1px; font-size: 16px; }
+.itens-total { font-weight: 800; font-size: 26px; letter-spacing: -.04em; margin-top: 14px; }
+
+/* botões no estilo pílula */
+.btn { border-radius: 999px; background: transparent; border: 1px solid var(--line-strong); box-shadow: none; padding: 11px 18px; font-family: var(--mono); font-size: 11.5px; font-weight: 400; text-transform: uppercase; letter-spacing: .06em; color: var(--text); }
+.btn:hover { background: var(--surface); }
+.btn.sm { padding: 7px 13px; font-size: 10.5px; border-radius: 999px; margin-top: 10px; }
+.btn.primary { background: var(--linho); color: var(--linho-txt); border-color: var(--linho); font-weight: 400; }
+.btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+.btn:disabled { opacity: .55; }
+.btn.block { text-align: center; }
+.actions { gap: 8px; margin: 8px 0 24px; }
+
+/* escolher (listas de opções) */
+.choose { gap: 0; border-bottom: 1px solid var(--line); }
+.choose .btn { border: 0; border-top: 1px solid var(--line); border-radius: 0; padding: 16px 2px; font-family: var(--font); font-size: 17px; font-weight: 600; text-transform: none; letter-spacing: -.01em; }
+.choose .btn:hover { background: transparent; color: var(--linho); }
+.choose .btn.danger { color: var(--danger); }
+.colors span { width: 30px; height: 30px; border-color: #0e0d0c; }
+
+/* entrada */
+.login-box { background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; border: 0; box-shadow: none; padding: 0 4px; max-width: 400px; }
+.login-logo { font-size: clamp(46px, 15vw, 64px); letter-spacing: -.05em; line-height: .9; margin: 14px 0 6px; font-weight: 800; }
+.login-box .sub { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.login-box .field input { background: transparent; border: 0; border-bottom: 1px solid var(--line-strong); border-radius: 0; padding: 10px 1px; font-size: 17px; }
+.login-box .field input:focus { outline: none; border-color: var(--linho); }
+.login-box .btn.block { padding: 14px; }
+.login-box .link { font-family: var(--mono); font-size: 11px !important; text-transform: uppercase; letter-spacing: .06em; margin-top: 10px; }
+.sheet-head .chipc::before { content: ""; } .sheet-head .chipc::after { content: none; }
+.itens-total { font-family: var(--serif); font-weight: 400; font-size: 28px; letter-spacing: -.03em; }
+.field .ck-add { font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; border-bottom-style: dashed; padding: 13px 1px; }

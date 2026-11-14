@@ -340,7 +340,7 @@ function openForm({ title, fields, values = {}, onSave, onDelete, deleteLabel = 
   sheetForm.innerHTML = `
     <div class="sheet-head"><button type="button" class="link" data-act="cancel">Cancelar</button><h2>${esc(title)}</h2><button type="submit" class="link strong">Salvar</button></div>
     <div class="sheet-body">${fields.map((f) => fieldHTML(f, values[f.name])).join('')}
-      ${onDelete ? `<button type="button" class="btn danger block" data-act="delete" style="margin-top:18px">${esc(deleteLabel)}</button>` : ''}</div>`;
+      ${onDelete ? `<button type="button" class="btn danger block" data-act="delete" style="margin-top:26px">${esc(deleteLabel)}</button>` : ''}</div>`;
   sheetForm.onclick = (e) => {
     const a = e.target.closest('[data-act]')?.dataset.act;
     if (a === 'cancel') sheet.close();
@@ -433,8 +433,8 @@ function openCard(id) {
       ${fieldHTML({ name: 'descricao', label: isOrc ? 'Observações internas' : 'Descrição', type: 'textarea' }, c.descricao)}
       <div class="field"><span>Checklist</span><div id="ck">${checklistHTML(c)}</div></div>
       ${fieldHTML({ name: 'link', label: 'Link (Drive, Frame.io…)', type: 'url', placeholder: 'https://' }, c.link)}
-      ${c.link ? `<p style="margin:-6px 2px 14px"><a href="${esc(c.link)}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600">Abrir link ↗</a></p>` : ''}
-      <button type="button" class="btn danger block" data-act="delete" style="margin-top:12px">Excluir cartão</button>
+      ${c.link ? `<p style="margin:-6px 2px 14px"><a href="${esc(c.link)}" target="_blank" rel="noopener" class="pilula" style="margin-top:0">Abrir link ↗</a></p>` : ''}
+      <button type="button" class="btn danger block" data-act="delete" style="margin-top:28px">Excluir cartão</button>
     </div>`;
 
   const ta = $('.card-title', sheetForm);
@@ -906,8 +906,9 @@ async function carregarEquipe() {
 
 function viewLogin() {
   return `<div class="login"><form class="login-box" id="loginForm">
+    <div class="mo q">Assistente</div>
     <div class="login-logo"><span class="wm">OCM <em>Filmes</em></span></div>
-    <p class="sub" style="margin:4px 0 22px">Entre para ver seus quadros</p>
+    <p class="sub" style="margin:4px 0 30px">Entre para ver seus quadros</p>
     <label class="field"><span>E-mail</span><input name="email" type="email" autocomplete="username" required></label>
     <label class="field"><span>Senha</span><input name="senha" type="password" autocomplete="current-password" minlength="6" required></label>
     <button class="btn primary block" name="acao" value="entrar">Entrar</button>
