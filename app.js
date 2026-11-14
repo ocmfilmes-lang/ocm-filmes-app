@@ -666,29 +666,48 @@ function viewInicio() {
   const hoje = abertos.filter((c) => c.prazo === t);
   const prox = abertos.filter((c) => c.prazo > t && c.prazo <= semana);
   const aReceber = db.lancamentos.filter((l) => l.tipo === 'Entrada' && !l.pago).reduce((s, l) => s + (Number(l.valor) || 0), 0);
-  const h = new Date().getHours();
-  const saud = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+  const agora = agoraHHMM();
+  const proximo = hoje.find((c) => c.hora && c.hora >= agora) || hoje.find((c) => !c.hora) || prox[0];
+  const n = hoje.length;
+  const titulo = n ? `${n} ${n === 1 ? 'coisa' : 'coisas'}.` : 'dia livre.';
+  const sub = [atrasados.length && `${atrasados.length} ${atrasados.length === 1 ? 'atrasada' : 'atrasadas'}`, prox.length && `${prox.length} nesta semana`].filter(Boolean).join(' — ') || 'nada pendente';
+  const dt = new Date();
+  const data = dt.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '') + ' ' + String(dt.getDate()).padStart(2, '0') + '.' + String(dt.getMonth() + 1).padStart(2, '0');
   return `<div class="page">
-    <div class="hello"><h1>${saud}<span class="dot">.</span></h1><div class="sub">${cap(new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }))}</div></div>
-    <div class="stats four" style="margin-top:14px">
-      <div class="stat"><div class="k">Atrasados</div><div class="v${atrasados.length ? ' neg' : ''}">${atrasados.length}</div></div>
-      <div class="stat"><div class="k">Para hoje</div><div class="v">${hoje.length}</div></div>
-      <div class="stat"><div class="k">Próximos 7 dias</div><div class="v">${prox.length}</div></div>
-      <a class="stat" href="#financeiro"><div class="k">A receber</div><div class="v">${money(aReceber)}</div></a>
+    <div class="hero">
+      <div class="mo">${esc(data)} — ${agora}</div>
+      <h1><em>Hoje,</em><br>${titulo}</h1>
+      <div class="mo q">${sub}</div>
     </div>
+    <div class="blocos">
+      ${proximo ? `<button class="bloco couro alto" data-open-card="${proximo.id}">
+        <span class="mo q">${proximo.prazo === t ? 'Próximo' : 'Próximo · ' + fmtDate(proximo.prazo)}</span>
+        <span><span class="hora">${proximo.hora ? proximo.hora.replace(':', 'h') : 'hoje'}</span><span class="tt">${esc(proximo.titulo)}</span>${cliente(proximo.clienteId) ? `<span class="mo">${esc(cliente(proximo.clienteId).nome)}</span>` : ''}</span>
+      </button>` : `<div class="bloco couro alto"><span class="mo q">Próximo</span><span><span class="hora">—</span><span class="tt">Nada marcado</span></span></div>`}
+      <a class="bloco marinho" href="#financeiro"><span class="mo q">A receber</span><span class="val">${money(aReceber).replace(',00', '')}</span></a>
+      <div class="bloco linho"><span class="mo q">Atrasado</span><span class="val">${atrasados.length}</span></div>
+    </div>
+    ${atrasados.length ? `<div class="mo q sec">Atrasado</div><div class="agenda">${atrasados.map(agRow).join('')}</div>` : ''}
+    <div class="mo q sec">Agenda</div>
+    <div class="agenda">${hoje.length ? hoje.map(agRow).join('') : '<div class="ag vazio">Nada com prazo para hoje.</div>'}</div>
+    ${prox.length ? `<div class="mo q sec">Esta semana</div><div class="agenda">${prox.map(agRow).join('')}</div>` : ''}
     ${resumoHTML()}
-    ${atrasados.length ? sec('Atrasados', atrasados.length) + box(atrasados.map(rowCardHTML)) : ''}
-    ${sec('Hoje', hoje.length)}${box(hoje.map(rowCardHTML), 'Nada com prazo para hoje.')}
-    ${sec('Próximos 7 dias', prox.length)}${box(prox.map(rowCardHTML), 'Nada nos próximos 7 dias.')}
-    ${sec('Seus quadros')}${tilesHTML()}
+    <div class="mo q sec">Quadros</div>${tilesHTML()}
   </div>`;
+}
+function agRow(c) {
+  const t = today();
+  const cli = cliente(c.clienteId);
+  const q = quadro(c.quadroId);
+  const h = c.prazo === t ? (c.hora || '—') : fmtDate(c.prazo) + (c.hora ? ' ' + c.hora : '');
+  return `<div class="ag${c.prazo < t ? ' late' : ''}" data-open-card="${c.id}"><span class="ag-h">${esc(h)}</span><span class="ag-t">${esc(c.titulo)}</span><span class="ag-m">${esc(cli ? cli.nome : q ? q.nome : '')}</span></div>`;
 }
 function resumoHTML() {
   const r = resumos[0];
   if (!r) return '';
   const quando = new Date(r.criado_em).toLocaleString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-  return `${sec('Resumo do WhatsApp')}<details class="resumo" ${Date.now() - new Date(r.criado_em) < 12 * 3600e3 ? 'open' : ''}>
-    <summary><b>${esc(r.titulo)}</b><small>${esc(quando)}</small></summary>
+  return `<details class="resumo" ${Date.now() - new Date(r.criado_em) < 12 * 3600e3 ? 'open' : ''}>
+    <summary><span class="mo q">WhatsApp</span><b>${esc(r.titulo.replace(/^📲\s*/, '').replace(/^WhatsApp\s*·\s*/i, ''))}</b><small>${esc(quando)}</small></summary>
     <div class="resumo-txt">${esc(r.texto)}</div>
   </details>`;
 }

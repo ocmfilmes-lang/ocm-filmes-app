@@ -2,60 +2,38 @@
    OCM Filmes — visual "cinema": grafite, luz de tungstênio
    ========================================================= */
 :root {
-  /* claro: papel quente */
-  --bg: #f4f2ee;
-  --bg-glow: rgba(232, 160, 74, .10);
-  --surface: #ffffff;
-  --surface-2: #efece6;
-  --surface-3: #e7e3db;
-  --col: rgba(0, 0, 0, .035);
-  --text: #16150f;
-  --muted: #7a766c;
-  --line: rgba(20, 18, 10, .09);
-  --line-strong: rgba(20, 18, 10, .16);
-  --hi: rgba(255, 255, 255, .9);           /* brilho no topo das superfícies */
-  --accent: #c77a28;                        /* tungstênio */
-  --accent-2: #e8a04a;
-  --accent-text: #ffffff;
-  --accent-soft: rgba(199, 122, 40, .12);
-  --glass: rgba(244, 242, 238, .72);
-  --shadow: 0 1px 2px rgba(30, 24, 10, .06), 0 4px 14px rgba(30, 24, 10, .05);
-  --shadow-lg: 0 24px 60px rgba(30, 24, 10, .22);
-  --danger: #c2412d; --danger-bg: rgba(194, 65, 45, .10);
-  --warn: #a8620b; --warn-bg: rgba(232, 160, 74, .16);
-  --info: #3a63c4; --info-bg: rgba(58, 99, 196, .10);
-  --ok: #2f7d55; --ok-bg: rgba(47, 125, 85, .11);
-  --radius: 16px;
-  --font: "Geist", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-  --serif: "Instrument Serif", "New York", Georgia, serif;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0b0b0d;
-    --bg-glow: rgba(232, 160, 74, .09);
-    --surface: #141417;
-    --surface-2: #1b1b1f;
-    --surface-3: #232328;
-    --col: rgba(255, 255, 255, .025);
-    --text: #f2efe9;
-    --muted: #8d8a83;
-    --line: rgba(255, 255, 255, .07);
-    --line-strong: rgba(255, 255, 255, .13);
-    --hi: rgba(255, 255, 255, .06);
-    --accent: #e8a04a;
-    --accent-2: #f5c27a;
-    --accent-text: #1a1206;
-    --accent-soft: rgba(232, 160, 74, .13);
-    --glass: rgba(11, 11, 13, .68);
-    --shadow: 0 1px 0 rgba(255, 255, 255, .03) inset, 0 8px 24px rgba(0, 0, 0, .35);
-    --shadow-lg: 0 30px 70px rgba(0, 0, 0, .7);
-    --danger: #ff8a74; --danger-bg: rgba(255, 110, 85, .12);
-    --warn: #f5b862; --warn-bg: rgba(232, 160, 74, .14);
-    --info: #8fb0ff; --info-bg: rgba(110, 145, 255, .12);
-    --ok: #7dd3a6; --ok-bg: rgba(90, 200, 140, .12);
-    color-scheme: dark;
-  }
+  /* base preta + materiais */
+  --bg: #0c0b0a;
+  --bg-glow: transparent;
+  --surface: #161412;
+  --surface-2: #1d1a17;
+  --surface-3: #26221e;
+  --col: #131110;
+  --text: #ece4d6;
+  --muted: #8f8676;
+  --line: rgba(236, 228, 214, .10);
+  --line-strong: rgba(236, 228, 214, .18);
+  --hi: transparent;
+  --couro: #7a4a2b; --couro-txt: #f3e6d3;
+  --marinho: #1b2a41; --marinho-txt: #dfe6f0;
+  --madeira: #4a3326; --madeira-txt: #ecdcc6;
+  --linho: #e8dfd0; --linho-txt: #1c1712;
+  --accent: #c08a5c;                 /* conhaque: destaque de texto */
+  --accent-2: #e8dfd0;
+  --accent-text: #1c1712;
+  --accent-soft: rgba(192, 138, 92, .16);
+  --glass: rgba(12, 11, 10, .86);
+  --shadow: none;
+  --shadow-lg: 0 30px 70px rgba(0, 0, 0, .7);
+  --danger: #e0846a; --danger-bg: rgba(224, 132, 106, .13);
+  --warn: #d9a46c; --warn-bg: rgba(217, 164, 108, .13);
+  --info: #9fb3d1; --info-bg: rgba(159, 179, 209, .12);
+  --ok: #a8c29a; --ok-bg: rgba(168, 194, 154, .12);
+  --radius: 18px;
+  --font: "Bricolage Grotesque", -apple-system, system-ui, sans-serif;
+  --serif: "Fraunces", Georgia, serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -66,7 +44,7 @@ body {
     radial-gradient(900px 400px at -10% 110%, var(--bg-glow), transparent 60%),
     var(--bg);
   color: var(--text); overflow: hidden;
-  font: 15px/1.45 var(--font); letter-spacing: -.005em;
+  font: 15px/1.45 var(--font); letter-spacing: -.01em; font-optical-sizing: auto;
   -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
 }
 a { color: inherit; text-decoration: none; }
@@ -465,3 +443,80 @@ body.deslogado .side, body.deslogado .tabbar, body.deslogado .topbar, body.deslo
 .resumo-txt { white-space: pre-wrap; margin-top: 12px; line-height: 1.6; font-size: 14px; color: color-mix(in srgb, var(--text) 88%, var(--muted)); }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* =========================================================
+   Direção "couro e linho" — preto, materiais, Bricolage + Fraunces + mono
+   ========================================================= */
+.mo { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
+.q::before { content: "\201C"; } .q::after { content: "\201D"; }
+h1, .board-head h1 { font-weight: 800; letter-spacing: -.045em; }
+.wm { font-weight: 800; letter-spacing: -.03em; text-transform: none; font-size: 1em; }
+.wm em { font-family: var(--serif); font-style: italic; font-weight: 300; color: var(--text); font-size: 1.05em; margin-left: 1px; letter-spacing: -.01em; }
+.topbar { background: var(--glass); border-bottom-color: var(--line); }
+.side { background: var(--bg); }
+.side .sh, h3.section, .stat .k, .field > span, .trow.head { font-family: var(--mono); font-weight: 400; letter-spacing: .06em; font-size: 11px; }
+.side a.active svg.i, .tabbar a.active svg.i { color: var(--text); }
+
+/* início */
+.hero { margin: 22px 2px 20px; }
+.hero h1 { font-size: clamp(54px, 17vw, 84px); line-height: .86; letter-spacing: -.055em; margin: 18px 0 12px; font-weight: 800; }
+.hero h1 em { font-family: var(--serif); font-style: italic; font-weight: 300; letter-spacing: -.035em; }
+.blocos { display: grid; grid-template-columns: 1.25fr 1fr; gap: 8px; }
+.bloco {
+  border: 0; border-radius: var(--radius); padding: 15px; text-align: left; font: inherit;
+  display: flex; flex-direction: column; justify-content: space-between; gap: 12px; min-height: 84px; color: inherit;
+}
+.bloco .mo { color: inherit; opacity: .72; }
+.bloco.alto { grid-row: span 2; min-height: 184px; }
+.bloco.couro { background: var(--couro); color: var(--couro-txt); }
+.bloco.marinho { background: var(--marinho); color: var(--marinho-txt); }
+.bloco.linho { background: var(--linho); color: var(--linho-txt); }
+.bloco .hora { display: block; font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 40px; line-height: .95; letter-spacing: -.03em; }
+.bloco .tt { display: block; font-weight: 600; font-size: 16px; line-height: 1.15; margin: 8px 0 6px; letter-spacing: -.02em; }
+.bloco .val { font-family: var(--serif); font-weight: 300; font-size: 30px; letter-spacing: -.03em; line-height: 1; white-space: nowrap; }
+.bloco:hover { filter: brightness(1.08); transform: none; }
+.mo.sec { margin: 30px 2px 4px; display: block; }
+.agenda { border-bottom: 1px solid var(--line); }
+.ag { display: grid; grid-template-columns: 62px minmax(0, 1fr) auto; align-items: baseline; gap: 10px; padding: 13px 2px; border-top: 1px solid var(--line); cursor: pointer; }
+.ag:hover { background: var(--surface); }
+.ag-h { font-family: var(--mono); font-size: 12px; color: var(--accent); }
+.ag-t { font-weight: 600; font-size: 16px; letter-spacing: -.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ag-m { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ag.late .ag-h { color: var(--danger); }
+.ag.vazio { display: block; color: var(--muted); cursor: default; font-size: 14px; }
+.ag.vazio:hover { background: none; }
+
+/* resumo do WhatsApp em madeira */
+.resumo { background: var(--madeira); color: var(--madeira-txt); border: 0; box-shadow: none; margin-top: 30px; padding: 15px; }
+.resumo::before { display: none; }
+.resumo summary { align-items: baseline; }
+.resumo summary .mo { color: inherit; opacity: .72; }
+.resumo summary b { font-weight: 600; letter-spacing: -.02em; }
+.resumo summary small { color: inherit; opacity: .6; font-family: var(--mono); font-size: 11px; }
+.resumo-txt { color: inherit; opacity: .92; }
+
+/* quadros (blocos de cor sólida, sem brilho) */
+.tile { background: var(--surface); box-shadow: none; padding-top: 32px; }
+.tile::before { display: none; }
+.tile::after { width: 10px; height: 10px; border-radius: 50%; top: 15px; }
+.tile small { font-family: var(--mono); text-transform: uppercase; font-size: 10.5px; letter-spacing: .05em; }
+
+/* superfícies sem efeito */
+.card, .stat, .kcard, .table, .col, .login-box { box-shadow: none; }
+.stat .v, .itens-total { font-family: var(--serif); font-weight: 300; letter-spacing: -.03em; }
+.kcard .kt { font-weight: 600; letter-spacing: -.015em; }
+.kcard:hover { border-color: var(--line-strong); }
+.pill, .badge { font-family: var(--mono); font-weight: 400; text-transform: uppercase; letter-spacing: .04em; font-size: 10.5px; }
+.pill::before { box-shadow: none; }
+.chip.on { background: var(--linho); color: var(--linho-txt); border-color: var(--linho); }
+
+/* ações em linho */
+.fab, .btn.primary { background: var(--linho); color: var(--linho-txt); box-shadow: none; }
+.fab { border-radius: 16px; font-weight: 400; }
+.btn.primary:hover { filter: brightness(.95); }
+.tabbar { background: #171513; -webkit-backdrop-filter: none; backdrop-filter: none; border-color: var(--line); box-shadow: 0 20px 50px rgba(0, 0, 0, .6); }
+.tabbar a { font-family: var(--mono); text-transform: uppercase; letter-spacing: .05em; font-size: 10px; }
+.tabbar a.active { background: var(--surface-3); }
+.sync, .sync.salvando, .sync.erro { box-shadow: none; }
+.card-title { font-weight: 800; letter-spacing: -.035em; }
+.login-logo { font-size: 30px; }
