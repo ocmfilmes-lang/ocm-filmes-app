@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0c0b0a">
+<meta name="robots" content="noindex">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600&family=Fraunces:ital,opsz,wght@1,9..144,300;1,9..144,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<title>Aprovação · OCM Filmes</title>
+<style>
+:root {
+  --bg: #0c0b0a; --surface: #161412; --surface-2: #1d1a17; --surface-3: #26221e;
+  --text: #ece4d6; --muted: #8f8676; --line: rgba(236,228,214,.10); --line-strong: rgba(236,228,214,.2);
+  --accent: #c08a5c; --accent-soft: rgba(192,138,92,.16); --linho: #e8dfd0; --linho-txt: #1c1712;
+  --ok: #a8c29a; --ok-bg: rgba(168,194,154,.12); --warn: #d9a46c; --warn-bg: rgba(217,164,108,.13); --danger: #e0846a;
+  --font: "Bricolage Grotesque", -apple-system, system-ui, sans-serif; --serif: "Fraunces", Georgia, serif; --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--text); font: 15px/1.45 var(--font); letter-spacing: -.01em; -webkit-font-smoothing: antialiased; min-height: 100vh; }
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: max(16px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom)); }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 6px 2px 18px; }
+.wm { font-weight: 700; letter-spacing: .14em; font-size: 12px; text-transform: uppercase; }
+.wm em { font-family: var(--serif); font-style: italic; font-weight: 400; letter-spacing: 0; text-transform: none; font-size: 1.32em; color: var(--accent); margin-left: 2px; }
+.mo { font: 500 11px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font: 300 clamp(26px, 4.4vw, 40px)/1.08 var(--serif); font-style: italic; letter-spacing: -.02em; margin: 4px 0 6px; }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 22px; align-items: start; }
+.grid.vert { grid-template-columns: minmax(0, 430px) minmax(0, 1fr); justify-content: center; }
+@media (max-width: 860px) { .grid, .grid.vert { grid-template-columns: minmax(0, 1fr); } }
+.player { background: #000; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
+video { display: block; width: 100%; max-height: 74vh; background: #000; }
+.grid.vert video { max-height: 78vh; }
+.linha { position: relative; height: 26px; margin: 10px 2px 0; cursor: pointer; touch-action: none; }
+.linha .trilho { position: absolute; left: 0; right: 0; top: 11px; height: 4px; border-radius: 2px; background: var(--surface-3); }
+.linha .feito { position: absolute; left: 0; top: 11px; height: 4px; border-radius: 2px; background: var(--accent); width: 0; }
+.linha .pino { position: absolute; top: 4px; width: 10px; height: 18px; margin-left: -5px; border-radius: 3px; background: var(--linho); border: 2px solid var(--bg); padding: 0; }
+.linha .pino.ativo { background: var(--accent); }
+.tempos { display: flex; justify-content: space-between; margin: 2px 2px 0; }
+.painel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+.novo { display: grid; gap: 8px; }
+.novo .em { display: flex; align-items: center; gap: 8px; }
+.chip { font: 500 12px var(--mono); background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 3px 10px; border: 0; }
+textarea, input[type=text] { width: 100%; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 12px; padding: 10px 12px; resize: vertical; }
+textarea { min-height: 76px; }
+.btn { border: 0; border-radius: 12px; padding: 11px 16px; font-weight: 600; background: var(--surface-3); }
+.btn.claro { background: var(--linho); color: var(--linho-txt); }
+.btn.ok { background: var(--ok); color: #142010; }
+.btn.aj { background: transparent; border: 1px solid var(--warn); color: var(--warn); }
+.btn:disabled { opacity: .5; cursor: default; }
+.lista { margin-top: 16px; display: grid; gap: 2px; max-height: 46vh; overflow: auto; }
+.com { display: grid; grid-template-columns: 52px 1fr auto; gap: 8px; align-items: start; padding: 9px 6px; border-radius: 10px; text-align: left; background: none; border: 0; width: 100%; }
+.com:hover, .com.ativo { background: var(--surface-2); }
+.com .t { font: 500 12px var(--mono); color: var(--accent); padding-top: 2px; }
+.com .x { font-size: 13px; white-space: pre-wrap; word-break: break-word; }
+.com .x small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+.com .del { background: none; border: 0; color: var(--muted); font-size: 18px; line-height: 1; padding: 0 4px; }
+.vazio { color: var(--muted); font-size: 13px; padding: 10px 6px; }
+.decidir { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.status { margin-top: 16px; padding: 14px; border-radius: 12px; }
+.status.aprovado { background: var(--ok-bg); color: var(--ok); }
+.status.ajustes { background: var(--warn-bg); color: var(--warn); }
+.status p { margin: 4px 0 0; color: var(--text); font-size: 13px; white-space: pre-wrap; }
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+.modal.on { display: flex; }
+.modal .caixa { background: var(--surface); border: 1px solid var(--line-strong); border-radius: 18px; padding: 20px; width: min(440px, 100%); display: grid; gap: 10px; }
+.modal h2 { margin: 0; font: 400 22px var(--serif); font-style: italic; }
+.acoes { display: flex; gap: 8px; justify-content: flex-end; }
+.aviso { text-align: center; padding: 80px 16px; color: var(--muted); }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--linho); color: var(--linho-txt); padding: 10px 16px; border-radius: 12px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="aviso">Carregando…</div></div>
+<div class="modal" id="modal"><div class="caixa" id="caixa"></div></div>
+<div class="toast" id="toast"></div>
+<script type="module">
+const URL_SB = 'https://vckdipuixrsozkqlwzlf.supabase.co';
+const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZja2RpcHVpeHJzb3prcWx3emxmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0MjEzMDAsImV4cCI6MjEwOTk5NzMwMH0.Gubeo8H9RbiVUALk2gEt7qT4DlJ57pYE4w0E6calfoY';
+const token = new URLSearchParams(location.search).get('t') || '';
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const mmss = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+const guardar = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+const meus = new Set(guardar.get('ocm-meus-' + token, []));
+let ap = null, video = null, ativo = null;
+
+async function rpc(fn, args) {
+  const r = await fetch(`${URL_SB}/rest/v1/rpc/${fn}`, { method: 'POST', headers: { apikey: ANON, Authorization: 'Bearer ' + ANON, 'Content-Type': 'application/json' }, body: JSON.stringify(args) });
+  const j = await r.json().catch(() => null);
+  if (!r.ok) throw new Error(j?.message || 'Não deu certo. Tente de novo.');
+  return j;
+}
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2600); }
+
+async function carregar(manterTempo) {
+  try { ap = await rpc('aprovacao_ver', { p_token: token }); } catch (e) { ap = null; }
+  if (!ap) { $('#app').innerHTML = '<div class="aviso">Este link não existe ou expirou.<br>Fale com a OCM Filmes.</div>'; return; }
+  const t = video?.currentTime || 0;
+  if (!video || !manterTempo) montar(); else desenharLista();
+  if (manterTempo && video) video.currentTime = t;
+}
+
+function montar() {
+  const aberto = ap.status === 'aguardando';
+  document.title = `${ap.titulo} · Aprovação`;
+  $('#app').innerHTML = `
+    <header><span class="wm">OCM<em>Filmes</em></span><span class="mo">${aberto ? 'Aguardando sua aprovação' : 'Respondido'}</span></header>
+    <div class="mo">Vídeo para aprovação</div>
+    <h1>${esc(ap.titulo)}</h1>
+    <div class="grid ${ap.vertical ? 'vert' : ''}" style="margin-top:14px">
+      <div>
+        <div class="player"><video id="v" src="${esc(ap.video)}" controls playsinline preload="metadata"></video></div>
+        <div class="linha" id="linha"><div class="trilho"></div><div class="feito" id="feito"></div><div id="pinos"></div></div>
+        <div class="tempos mo"><span id="agora">0:00</span><span id="total">${ap.duracao ? mmss(ap.duracao) : ''}</span></div>
+      </div>
+      <div class="painel">
+        ${aberto ? `<div class="novo">
+          <div class="em"><span class="mo">Comentário em</span><button class="chip" id="emT" title="Usar o tempo atual">0:00</button></div>
+          <textarea id="txt" placeholder="Ex.: troca essa música, tira esta fala…" maxlength="1000"></textarea>
+          <input type="text" id="nome" placeholder="Seu nome" maxlength="80" value="${esc(guardar.get('ocm-nome', ''))}">
+          <button class="btn claro" id="enviar">Comentar</button>
+        </div>` : ''}
+        <div class="lista" id="lista"></div>
+        <div id="fim"></div>
+      </div>
+    </div>`;
+  video = $('#v');
+  const dur = () => (video.duration && isFinite(video.duration) ? video.duration : ap.duracao || 1);
+  video.addEventListener('timeupdate', () => {
+    $('#agora').textContent = mmss(video.currentTime);
+    $('#feito').style.width = (video.currentTime / dur() * 100) + '%';
+    if ($('#emT') && document.activeElement !== $('#txt')) $('#emT').textContent = mmss(video.currentTime);
+  });
+  video.addEventListener('loadedmetadata', () => { $('#total').textContent = mmss(video.duration); desenharPinos(); });
+  const linha = $('#linha');
+  const ir = (e) => { const r = linha.getBoundingClientRect(); video.currentTime = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * dur(); };
+  linha.addEventListener('pointerdown', (e) => { if (e.target.classList.contains('pino')) return; ir(e); linha.setPointerCapture(e.pointerId); linha.onpointermove = ir; });
+  linha.addEventListener('pointerup', () => { linha.onpointermove = null; });
+  if (aberto) {
+    $('#txt').addEventListener('focus', () => { video.pause(); $('#emT').textContent = mmss(video.currentTime); });
+    $('#emT').addEventListener('click', () => { $('#emT').textContent = mmss(video.currentTime); });
+    $('#enviar').addEventListener('click', comentar);
+    $('#txt').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) comentar(); });
+  }
+  desenharLista();
+}
+
+function desenharPinos() {
+  const d = video?.duration && isFinite(video.duration) ? video.duration : ap.duracao || 1;
+  $('#pinos').innerHTML = ap.comentarios.map((c) => `<button class="pino${ativo === c.id ? ' ativo' : ''}" style="left:${Math.min(100, c.tempo / d * 100)}%" data-id="${c.id}" title="${mmss(c.tempo)} — ${esc(c.texto)}" aria-label="Comentário em ${mmss(c.tempo)}"></button>`).join('');
+  document.querySelectorAll('.pino').forEach((p) => p.addEventListener('click', () => focar(p.dataset.id)));
+}
+
+function desenharLista() {
+  const aberto = ap.status === 'aguardando';
+  const cs = ap.comentarios;
+  $('#lista').innerHTML = cs.length ? cs.map((c) => `<div class="com${ativo === c.id ? ' ativo' : ''}" data-id="${c.id}" role="button" tabindex="0">
+      <span class="t">${mmss(c.tempo)}</span>
+      <span class="x">${esc(c.texto)}${c.autor ? `<small>${esc(c.autor)}</small>` : ''}</span>
+      ${aberto && meus.has(c.id) ? `<button class="del" data-del="${c.id}" aria-label="Apagar comentário">×</button>` : '<span></span>'}
+    </div>`).join('') : `<div class="vazio">${aberto ? 'Assista e comente em qualquer momento do vídeo. Quando terminar, aprove ou peça ajustes.' : 'Sem comentários.'}</div>`;
+  document.querySelectorAll('.com').forEach((el) => el.addEventListener('click', (e) => { if (!e.target.dataset.del) focar(el.dataset.id); }));
+  document.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => apagar(b.dataset.del)));
+  $('#fim').innerHTML = aberto
+    ? `<div class="decidir"><button class="btn aj" id="ajustes">Pedir ajustes</button><button class="btn ok" id="aprovar">Aprovar</button></div>`
+    : `<div class="status ${ap.status}"><b>${ap.status === 'aprovado' ? '✓ Vídeo aprovado' : 'Ajustes pedidos'}</b>${ap.decidido_por ? ` por ${esc(ap.decidido_por)}` : ''}${ap.decidido_em ? ` em ${new Date(ap.decidido_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''}${ap.mensagem ? `<p>${esc(ap.mensagem)}</p>` : ''}</div>`;
+  if (aberto) { $('#aprovar').onclick = () => decidir('aprovado'); $('#ajustes').onclick = () => decidir('ajustes'); }
+  desenharPinos();
+}
+
+function focar(id) {
+  const c = ap.comentarios.find((x) => x.id === id); if (!c) return;
+  ativo = id; video.currentTime = c.tempo; video.pause(); desenharLista();
+  document.querySelector(`.com[data-id="${id}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+async function comentar() {
+  const texto = $('#txt').value.trim(); if (!texto) return $('#txt').focus();
+  const nome = $('#nome').value.trim(); guardar.set('ocm-nome', nome);
+  const [m, s] = $('#emT').textContent.split(':').map(Number);
+  $('#enviar').disabled = true;
+  try {
+    const id = await rpc('aprovacao_comentar', { p_token: token, p_tempo: m * 60 + s, p_texto: texto, p_autor: nome });
+    meus.add(id); guardar.set('ocm-meus-' + token, [...meus]);
+    $('#txt').value = ''; await carregar(true); toast('Comentário salvo');
+  } catch (e) { toast(e.message); }
+  $('#enviar').disabled = false;
+}
+
+async function apagar(id) {
+  try { await rpc('aprovacao_apagar_comentario', { p_token: token, p_id: id }); meus.delete(id); guardar.set('ocm-meus-' + token, [...meus]); await carregar(true); }
+  catch (e) { toast(e.message); }
+}
+
+function decidir(status) {
+  const ok = status === 'aprovado', n = ap.comentarios.length;
+  $('#caixa').innerHTML = `<h2>${ok ? 'Aprovar o vídeo?' : 'Pedir ajustes?'}</h2>
+    <div class="mo" style="text-transform:none;letter-spacing:0;font-family:var(--font);font-size:13px">${ok ? (n ? `Os ${n} comentários também vão para a OCM.` : 'A OCM recebe o aviso na hora.') : `A OCM recebe ${n ? `os ${n} comentários` : 'o pedido'} na hora.`} Depois de enviar, esta versão fica fechada.</div>
+    <input type="text" id="mNome" placeholder="Seu nome" maxlength="80" value="${esc(guardar.get('ocm-nome', ''))}">
+    <textarea id="mMsg" placeholder="${ok ? 'Recado (opcional)' : 'O que precisa mudar? (opcional se já comentou no vídeo)'}" maxlength="2000"></textarea>
+    <div class="acoes"><button class="btn" id="mNao">Voltar</button><button class="btn ${ok ? 'ok' : 'claro'}" id="mSim">${ok ? 'Aprovar' : 'Enviar pedido'}</button></div>`;
+  $('#modal').classList.add('on');
+  $('#mNao').onclick = () => $('#modal').classList.remove('on');
+  $('#mSim').onclick = async () => {
+    if (!ok && !n && !$('#mMsg').value.trim()) return $('#mMsg').focus();
+    $('#mSim').disabled = true;
+    guardar.set('ocm-nome', $('#mNome').value.trim());
+    try { await rpc('aprovacao_decidir', { p_token: token, p_status: status, p_autor: $('#mNome').value, p_mensagem: $('#mMsg').value }); $('#modal').classList.remove('on'); await carregar(true); toast(ok ? 'Aprovado. Obrigado!' : 'Pedido enviado. Obrigado!'); }
+    catch (e) { toast(e.message); $('#mSim').disabled = false; }
+  };
+}
+
+$('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') $('#modal').classList.remove('on'); });
+if (!token) $('#app').innerHTML = '<div class="aviso">Link incompleto.</div>'; else carregar();
+</script>
+</body>
+</html>

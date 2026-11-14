@@ -75,6 +75,7 @@ const ICON = {
   boards: '<svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 7v8M12 7v4M16 7v10"/></svg>',
   money: '<svg class="i" viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
   gear: '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+  mac: '<svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
   back: '<svg class="i" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>',
   more: '<svg class="i" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg>',
   check: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>',
@@ -221,6 +222,7 @@ async function carregarTudo() {
   const { data: rs } = await sb.from('resumos').select('*').eq('workspace_id', ws).order('criado_em', { ascending: false }).limit(5);
   resumos = rs || [];
   await carregarTempos();
+  await carregarMac().catch(() => {});
   for (const n of ORDEM) snap[n] = new Map(db[n].map((o) => [o.id, assinatura(n, o)]));
   carregado = true;
 }
@@ -250,6 +252,9 @@ function assinarAoVivo() {
   canal.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'resumos', filter: `workspace_id=eq.${ws}` }, (p) => { resumos.unshift(p.new); resumos = resumos.slice(0, 5); atualizarTela(); });
   canal.on('postgres_changes', { event: '*', schema: 'public', table: 'tempos', filter: `workspace_id=eq.${ws}` }, tempoMudou);
   canal.on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'resumos' }, (p) => { resumos = resumos.filter((r) => r.id !== p.old?.id); atualizarTela(); });
+  canal.on('postgres_changes', { event: '*', schema: 'public', table: 'mac_estado', filter: `workspace_id=eq.${ws}` }, (p) => macChegou(p.new));
+  canal.on('postgres_changes', { event: '*', schema: 'public', table: 'aprovacoes', filter: `workspace_id=eq.${ws}` }, (p) => { aprovChegou(p.new?.id ? p.new : p.old, p.eventType === 'DELETE'); atualizarTela(); });
+  canal.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'comandos', filter: `workspace_id=eq.${ws}` }, (p) => { if (['ok', 'erro', 'expirado'].includes(p.new?.status)) esperando.get(p.new.id)?.(p.new); });
   canal.subscribe();
 }
 function chegou(n, row) {
@@ -277,6 +282,7 @@ async function iniciarSessao() {
     ws = data;
     await carregarTudo();
     assinarAoVivo();
+    setTimeout(boasVindas, 50);
   } catch (e) {
     console.error(e);
     alert('Não consegui carregar seus dados: ' + (e.message || e));
@@ -447,6 +453,7 @@ function openCard(id) {
         </div>` : ''}
       ${fieldHTML({ name: 'descricao', label: isOrc ? 'Observações internas' : 'Descrição', type: 'textarea' }, c.descricao)}
       <div class="field"><span>Checklist</span><div id="ck">${checklistHTML(c)}</div></div>
+      ${aprovacaoHTML(c)}
       ${fieldHTML({ name: 'link', label: 'Link (Drive, Frame.io…)', type: 'url', placeholder: 'https://' }, c.link)}
       ${c.link ? `<p style="margin:-6px 2px 14px"><a href="${esc(c.link)}" target="_blank" rel="noopener" class="pilula" style="margin-top:0">Abrir link ↗</a></p>` : ''}
       <button type="button" class="btn danger block" data-act="delete" style="margin-top:28px">Excluir cartão</button>
@@ -507,6 +514,11 @@ function openCard(id) {
     const a = e.target.closest('[data-act]')?.dataset.act;
     if (!a) return;
     if (a === 'close') sheet.close();
+    if (a === 'aprov-copiar') { navigator.clipboard?.writeText(e.target.dataset.link).then(() => { e.target.textContent = '✓ Copiado'; }, () => prompt('Copie o link:', e.target.dataset.link)); }
+    if (a === 'aprov-premiere') {
+      const b = e.target; b.disabled = true; b.textContent = 'Mandando ao Mac…';
+      macCmd('marcadores', { card_id: c.id }).then((r) => { b.textContent = r.status === 'ok' ? '✓ ' + respTxt(r) : respTxt(r); b.disabled = false; });
+    }
     if (a === 'add-item') { $('.itens', sheetForm).insertAdjacentHTML('beforeend', itemRowHTML()); $('.item-row:last-child input', sheetForm).focus(); }
     if (a === 'rm-item') { e.target.closest('.item-row').remove(); sync(); }
     if (a === 'pdf') { sync(); imprimirOrcamento(c); }
@@ -531,6 +543,7 @@ function openCard(id) {
   aoFecharSheet = render;
   sheet.showModal();
   autosize();
+  carregarComentarios(c);
   if (isOrc) $('#itensTotal', sheetForm).textContent = `Total: ${money(orcTotal(c))}`;
   $('.sheet-body', sheetForm).scrollTop = 0;
   if (!c.titulo) ta.focus();
@@ -707,6 +720,7 @@ function viewInicio() {
       <h1><em>Hoje,</em><br>${titulo}</h1>
       <div class="mo q">${sub}</div>
     </div>
+    ${macLinhaHTML()}
     <div class="blocos">
       ${proximo ? `<button class="bloco couro alto" data-open-card="${proximo.id}">
         <span class="mo q">${proximo.prazo === t ? 'Próximo' : 'Próximo · ' + fmtDate(proximo.prazo)}</span>
@@ -1053,9 +1067,185 @@ function soltarDrag() {
 /* =========================================================
    Navegação e eventos
    ========================================================= */
+/* =========================================================
+   Mac pelo celular (o OCM Tempo lê a fila de comandos)
+   ========================================================= */
+let macEstado = null, macVisto = null, aprovs = [];
+const macOnline = () => !!macVisto && Date.now() - new Date(macVisto) < 3 * 60e3;
+const tam = (b) => (b >= 1e12 ? (b / 1e12).toFixed(1).replace('.', ',') + ' TB' : Math.round(b / 1e9) + ' GB');
+async function carregarMac() {
+  const { data } = await sb.from('mac_estado').select('*').eq('workspace_id', ws).maybeSingle();
+  if (data) { macEstado = data.estado; macVisto = data.visto_em; }
+  const { data: ap } = await sb.from('aprovacoes').select('*').eq('workspace_id', ws).order('criado_em', { ascending: false }).limit(60);
+  aprovs = ap || [];
+}
+function macChegou(row) {
+  if (!row) return;
+  const mudou = JSON.stringify(row.estado) !== JSON.stringify(macEstado) || macOnline() !== (Date.now() - new Date(row.visto_em) < 3 * 60e3);
+  macEstado = row.estado; macVisto = row.visto_em;
+  if (mudou && ['inicio', 'mac'].includes(rota().r)) atualizarTela();
+}
+function aprovChegou(row, apagou) {
+  aprovs = aprovs.filter((a) => a.id !== row.id);
+  if (!apagou) aprovs.unshift(row);
+}
+
+const esperando = new Map();
+async function macCmd(tipo, args = {}, espera = 60) {
+  const id = uid();
+  const { error } = await sb.from('comandos').insert({ id, workspace_id: ws, tipo, args, status: 'pendente' });
+  if (error) return { status: 'erro', resposta: { erro: error.message } };
+  return new Promise((res) => {
+    let n = 0, t;
+    const fim = (row) => { clearInterval(t); esperando.delete(id); res(row); };
+    esperando.set(id, fim);
+    t = setInterval(async () => {
+      n += 2;
+      const { data } = await sb.from('comandos').select('status,resposta').eq('id', id).maybeSingle();
+      if (data && ['ok', 'erro', 'expirado'].includes(data.status)) fim(data);
+      else if (n >= espera) fim({ status: 'erro', resposta: { erro: 'O Mac não respondeu. Ele está ligado, com o OCM Tempo aberto?' } });
+    }, 2000);
+  });
+}
+const respTxt = (r) => (r.status === 'ok' ? r.resposta?.texto || 'Feito ✓' : r.status === 'expirado' ? 'O Mac não pegou o pedido a tempo.' : r.resposta?.erro || 'Não deu certo.');
+
+function macLinhaHTML() {
+  const e = macEstado;
+  if (!e) return '';
+  const on = macOnline();
+  const hd = (e.hds || []).filter((h) => !h.cartao && h.nome !== 'Mac').sort((a, b) => b.total - a.total)[0];
+  const partes = [
+    e.cartao?.copiando ? `copiando cartão ${e.cartao.pct}%` : '',
+    e.renders?.length ? 'renderizando' : '',
+    hd ? `${esc(hd.nome)}: ${tam(hd.livre)} livres` : '',
+    e.pausado ? 'contagem pausada' : '',
+  ].filter(Boolean);
+  return `<a class="mac-linha${on ? ' on' : ''}" href="#mac"><span class="pt"></span><b>Mac</b><span>${on ? partes.join(' · ') || 'online' : 'desligado ou sem internet'}</span><span class="seta">›</span></a>`;
+}
+
+function viewMac() {
+  const e = macEstado || {};
+  const on = macOnline();
+  const visto = macVisto ? new Date(macVisto).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+  const hds = (e.hds || []).slice().sort((a, b) => (a.cartao - b.cartao) || (b.total - a.total));
+  const c = e.cartao || {};
+  const pre = e.premiere ? (e.ponte ? 'Premiere aberto' : 'Premiere aberto — feche e abra de novo para ligar a ponte') : 'Premiere fechado';
+  const b = (tipo, txt, sub) => `<button class="mac-btn" data-mac="${tipo}"${on ? '' : ' disabled'}><b>${txt}</b><small>${sub}</small></button>`;
+  return `<div class="page">
+    <div class="hero">
+      <div class="mo q">${on ? 'online' : 'offline'}${visto ? ' · visto ' + visto : ''}</div>
+      <h1><em>Seu</em><br>Mac.</h1>
+      <div class="mo q">${on ? (e.pausado ? 'contagem de tempo pausada' : e.agora ? 'agora: ' + esc(e.agora) : 'contando tempo') : 'ligue o Mac ou abra o OCM Tempo'}</div>
+    </div>
+    ${c.copiando ? `<div class="mac-card couro"><span class="mo q">Copiando cartão · ${esc(c.arquivos || '')}</span><b class="big">${c.pct}%</b><div class="barra"><div style="width:${c.pct}%"></div></div><small>${esc(c.atual || '')} — não tire o cartão</small></div>` : ''}
+    ${!c.copiando && c.ultimo ? `<div class="mac-card"><span class="mo q">Último cartão</span><small>${esc(c.ultimo)}</small></div>` : ''}
+    ${e.renders?.length ? `<div class="mac-card marinho"><span class="mo q">Renderizando</span>${e.renders.map((r) => `<small>${esc(r)}</small>`).join('')}<small style="opacity:.7">Aviso no celular quando terminar.</small></div>` : ''}
+    <div class="mo q sec">Ações</div>
+    <div class="mac-grid">
+      ${b('estado', 'Atualizar', 'status agora')}
+      ${b('print', 'Print da tela', 'ver o que está aberto')}
+      ${b('projetos', 'Abrir projeto', 'Premiere / After')}
+      ${b('exportar', 'Exportar', 'sequência aberta · _FINAL')}
+      ${b(e.pausado ? 'retomar' : 'pausar', e.pausado ? 'Retomar' : 'Pausar', 'contagem de tempo')}
+    </div>
+    <div id="macRes">${ui.macRes || ''}</div>
+    <div class="mo q sec">Discos</div>
+    <div class="hds">${hds.length ? hds.map((h) => { const p = Math.round((1 - h.livre / h.total) * 100); return `<div class="hd${h.cartao ? ' cartao' : ''}"><div class="hd-t"><b>${esc(h.nome)}</b>${h.cartao ? '<span class="mo q">cartão</span>' : ''}<span class="mo">${tam(h.livre)} livres de ${tam(h.total)}</span></div><div class="barra${p > 90 ? ' cheio' : ''}"><div style="width:${p}%"></div></div></div>`; }).join('') : '<div class="ag vazio">Sem informação ainda.</div>'}</div>
+    <div class="mo q sec">Premiere</div>
+    <div class="agenda"><div class="ag"><span class="ag-h">${e.premiere ? '●' : '○'}</span><span class="ag-t">${pre}</span></div>
+      ${(e.ultimos_renders || []).slice().reverse().map((r) => `<div class="ag"><span class="ag-h">${new Date(r.em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span><span class="ag-t">✓ ${esc(r.nome)}</span><span class="ag-m">render</span></div>`).join('')}</div>
+    ${(e.hoje || []).length ? `<div class="mo q sec">Tempo hoje</div><div class="agenda">${e.hoje.map((h) => `<div class="ag"><span class="ag-h">${duracao(h.seg)}</span><span class="ag-t">${esc(h.titulo)}</span></div>`).join('')}</div>` : ''}
+  </div>`;
+}
+
+async function macAcao(tipo, extra = {}) {
+  const msgs = { estado: 'Perguntando ao Mac…', print: 'Tirando print…', projetos: 'Buscando projetos…', exportar: 'Mandando exportar…', pausar: 'Pausando…', retomar: 'Retomando…', abrir: 'Abrindo…' };
+  if (tipo === 'exportar' && !confirm('Exportar a sequência aberta no Premiere em H.264, com _FINAL no nome?')) return;
+  const mostrar = (h) => { ui.macRes = h; const el = $('#macRes'); if (el) el.innerHTML = h; };
+  mostrar(`<div class="mac-res mo q">${msgs[tipo] || 'Enviando…'}</div>`);
+  const r = await macCmd(tipo, extra, tipo === 'print' ? 45 : 60);
+  if (r.status !== 'ok') return mostrar(`<div class="mac-res erro">${esc(respTxt(r))}</div>`);
+  const d = r.resposta || {};
+  if (tipo === 'estado') { macEstado = d; macVisto = new Date().toISOString(); ui.macRes = ''; return render(); }
+  if (tipo === 'pausar' || tipo === 'retomar') { if (macEstado) macEstado.pausado = !!d.pausado; ui.macRes = `<div class="mac-res">${d.pausado ? 'Contagem pausada.' : 'Contagem retomada.'}</div>`; return render(); }
+  if (tipo === 'print') return mostrar(`<div class="mac-res"><img class="print" src="${d.img}" alt="Tela do Mac"><small class="mut">${agoraHHMM()} · toque e segure para salvar</small></div>`);
+  if (tipo === 'projetos') {
+    const ps = d.projetos || [];
+    return mostrar(`<div class="mac-res"><div class="agenda">${ps.length ? ps.map((p) => `<button class="ag" data-abrir="${esc(p.caminho)}"><span class="ag-h">${p.caminho.endsWith('.aep') ? 'AE' : 'PR'}</span><span class="ag-t">${esc(p.nome)}</span><span class="ag-m">${new Date(p.em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span></button>`).join('') : '<div class="ag vazio">Nenhum projeto nos últimos 90 dias.</div>'}</div></div>`);
+  }
+  mostrar(`<div class="mac-res ok">${esc(respTxt(r))}</div>`);
+}
+
+/* Aprovação do cliente, dentro do cartão */
+function aprovacaoHTML(c) {
+  const a = aprovs.find((x) => x.card_id === c.id);
+  if (!a) return '';
+  const link = new URL('aprovar.html?t=' + a.token, location.href).href;
+  const st = { enviando: 'Enviando o vídeo…', aguardando: 'Aguardando o cliente', aprovado: '✓ Aprovado', ajustes: 'Ajustes pedidos', expirado: 'Vídeo expirado (45 dias)' }[a.status] || a.status;
+  return `<div class="field"><span>Aprovação do cliente</span><div class="aprov ${a.status}">
+    <div class="aprov-top"><b>${st}</b><span class="mo q">${esc(a.titulo)}${a.decidido_por ? ' · ' + esc(a.decidido_por) : ''}</span></div>
+    ${a.mensagem ? `<p class="aprov-msg">${esc(a.mensagem)}</p>` : ''}
+    <div id="aprovComs"><span class="mo q">Carregando comentários…</span></div>
+    <div class="actions">
+      <button type="button" class="btn sm" data-act="aprov-copiar" data-link="${esc(link)}">Copiar link</button>
+      <a class="btn sm" href="${esc(link)}" target="_blank" rel="noopener">Abrir ↗</a>
+      <button type="button" class="btn sm" data-act="aprov-premiere">Levar ao Premiere</button>
+    </div></div></div>`;
+}
+async function carregarComentarios(c) {
+  const a = aprovs.find((x) => x.card_id === c.id);
+  const el = $('#aprovComs', sheetForm);
+  if (!a || !el) return;
+  const { data } = await sb.from('aprovacao_comentarios').select('tempo,texto,autor').eq('aprovacao_id', a.id).order('tempo');
+  const mmss = (t) => `${Math.floor(t / 60)}:${pad(Math.floor(t % 60))}`;
+  el.innerHTML = data?.length
+    ? data.map((k) => `<div class="aprov-com"><span class="mo">${mmss(k.tempo)}</span><span>${esc(k.texto)}${k.autor ? `<small> — ${esc(k.autor)}</small>` : ''}</span></div>`).join('')
+    : '<span class="mo q">Sem comentários ainda.</span>';
+}
+
+/* =========================================================
+   Abertura animada (uma vez por sessão do app)
+   ========================================================= */
+function boasVindas() {
+  try { if (sessionStorage.getItem('ocm-oi')) return; sessionStorage.setItem('ocm-oi', '1'); } catch { /* sem storage: mostra mesmo assim */ }
+  const t = today(), h = new Date().getHours();
+  const abertos = db.cards.filter((c) => c.prazo && !concluido(c));
+  const hoje = abertos.filter((c) => c.prazo === t).sort((a, b) => quando(a).localeCompare(quando(b)));
+  const atras = abertos.filter((c) => c.prazo < t).length;
+  const receber = db.lancamentos.filter((l) => l.tipo === 'Entrada' && !l.pago).reduce((s, l) => s + (Number(l.valor) || 0), 0);
+  const prox = hoje.find((c) => c.hora && c.hora >= agoraHHMM());
+  const e = macEstado || {};
+  const linhas = [
+    [hoje.length ? `${hoje.length} ${hoje.length === 1 ? 'coisa' : 'coisas'} para hoje` : 'Nada marcado para hoje', prox ? `próximo às ${prox.hora.replace(':', 'h')} · ${prox.titulo}` : ''],
+    atras ? [`${atras} ${atras === 1 ? 'atrasada' : 'atrasadas'}`, 'vale olhar primeiro'] : null,
+    receber ? [`${money(receber).replace(',00', '')} a receber`, 'no financeiro'] : null,
+    e.cartao?.copiando ? [`Cartão copiando · ${e.cartao.pct}%`, 'não tire do leitor'] : null,
+    e.renders?.length ? ['Render rodando no Mac', 'aviso quando terminar'] : null,
+    resumos[0] && Date.now() - new Date(resumos[0].criado_em) < 12 * 3600e3 ? ['Resumo do WhatsApp', resumos[0].titulo.replace(/^📲\s*/, '').replace(/^WhatsApp\s*·\s*/i, '')] : null,
+  ].filter(Boolean).slice(0, 5);
+  const ola = h < 5 ? 'Boa madrugada' : h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+  const dt = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const el = document.createElement('div');
+  el.className = 'oi';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-label', 'Resumo do dia');
+  el.innerHTML = `<div class="oi-luz"></div><div class="oi-grao"></div>
+    <div class="oi-conteudo">
+      <div class="mo q oi-l" style="--d:0">${esc(dt)}</div>
+      <h1 class="oi-l" style="--d:1"><em>${ola}.</em></h1>
+      <div class="oi-linhas">${linhas.map(([a, b], i) => `<div class="oi-l oi-item" style="--d:${i + 2}"><b>${esc(a)}</b>${b ? `<small>${esc(b)}</small>` : ''}</div>`).join('')}</div>
+      <div class="mo q oi-l oi-toque" style="--d:${linhas.length + 3}">toque para entrar</div>
+    </div>`;
+  document.body.appendChild(el);
+  let saiu = false;
+  const sair = () => { if (saiu) return; saiu = true; el.classList.add('saindo'); setTimeout(() => el.remove(), 600); };
+  el.addEventListener('click', sair);
+  setTimeout(sair, 3200 + linhas.length * 450);
+}
+
 function rota() {
   const [r, arg] = (location.hash.slice(1) || 'inicio').split('/');
-  return ['inicio', 'quadros', 'quadro', 'financeiro', 'ajustes'].includes(r) ? { r, arg } : { r: 'inicio' };
+  return ['inicio', 'quadros', 'quadro', 'financeiro', 'ajustes', 'mac'].includes(r) ? { r, arg } : { r: 'inicio' };
 }
 
 function render() {
@@ -1078,7 +1268,7 @@ function render() {
 
   main.className = q && (ui.modo[q.id] || 'quadro') ? 'board-mode' : '';
   main.style.setProperty('--b', q?.cor || 'transparent');
-  main.innerHTML = { inicio: viewInicio, quadros: viewQuadros, quadro: () => viewQuadro(arg), financeiro: viewFinanceiro, ajustes: viewAjustes }[r]();
+  main.innerHTML = { inicio: viewInicio, quadros: viewQuadros, quadro: () => viewQuadro(arg), financeiro: viewFinanceiro, ajustes: viewAjustes, mac: viewMac }[r]();
   main.dataset.rota = location.hash;
   if (mesmaTela && $('#board')) $('#board').scrollLeft = scrollBoard;
 
@@ -1091,7 +1281,7 @@ function render() {
 
   // abas (celular)
   const tab = r === 'quadro' ? 'quadros' : r;
-  const tabs = [['inicio', 'Início', ICON.home], ['quadros', 'Quadros', ICON.boards], ['financeiro', 'Financeiro', ICON.money], ['ajustes', 'Ajustes', ICON.gear]];
+  const tabs = [['inicio', 'Início', ICON.home], ['quadros', 'Quadros', ICON.boards], ['financeiro', 'Financeiro', ICON.money], ['mac', 'Mac', ICON.mac], ['ajustes', 'Ajustes', ICON.gear]];
   $('#tabbar').innerHTML = tabs.map(([k, l, i]) => `<a href="#${k}" class="${tab === k ? 'active' : ''}">${i}${l}</a>`).join('');
 
   // barra lateral (computador)
@@ -1101,7 +1291,7 @@ function render() {
     ${db.quadros.map((x) => `<a href="#quadro/${x.id}" class="${q?.id === x.id ? 'active' : ''}"><span class="sq" style="background:${x.cor}"></span>${esc(x.nome)}</a>`).join('')}
     <button class="sl" data-novo-quadro style="color:var(--muted)">+ Novo quadro</button>`;
 
-  $('#fab').hidden = r === 'quadros';
+  $('#fab').hidden = r === 'quadros' || r === 'mac';
   $('#board')?.addEventListener('pointerdown', onCardPointerDown);
 }
 
@@ -1118,6 +1308,8 @@ document.addEventListener('click', (e) => {
   const el = (s) => e.target.closest(s);
   let x;
   if (el('[data-novo-quadro]')) return novoQuadro();
+  if ((x = el('[data-mac]')) && !x.disabled) return macAcao(x.dataset.mac);
+  if ((x = el('[data-abrir]'))) return macAcao('abrir', { caminho: x.dataset.abrir });
   if ((x = el('.kcard[data-card]')) && Date.now() - ultimoDrop > 400) return openCard(x.dataset.card);
   if ((x = el('[data-open-card]')) && !el('select')) return openCard(x.dataset.openCard);
   const { r, arg } = rota();
