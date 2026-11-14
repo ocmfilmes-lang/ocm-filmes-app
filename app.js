@@ -669,7 +669,7 @@ function viewInicio() {
   const h = new Date().getHours();
   const saud = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
   return `<div class="page">
-    <div class="hello"><h1>${saud}!</h1><div class="sub">${cap(new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }))}</div></div>
+    <div class="hello"><h1>${saud}<span class="dot">.</span></h1><div class="sub">${cap(new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }))}</div></div>
     <div class="stats four" style="margin-top:14px">
       <div class="stat"><div class="k">Atrasados</div><div class="v${atrasados.length ? ' neg' : ''}">${atrasados.length}</div></div>
       <div class="stat"><div class="k">Para hoje</div><div class="v">${hoje.length}</div></div>
@@ -857,7 +857,7 @@ async function carregarEquipe() {
 
 function viewLogin() {
   return `<div class="login"><form class="login-box" id="loginForm">
-    <div class="login-logo">OCM Filmes</div>
+    <div class="login-logo"><span class="wm">OCM <em>Filmes</em></span></div>
     <p class="sub" style="margin:4px 0 22px">Entre para ver seus quadros</p>
     <label class="field"><span>E-mail</span><input name="email" type="email" autocomplete="username" required></label>
     <label class="field"><span>Senha</span><input name="senha" type="password" autocomplete="current-password" minlength="6" required></label>
@@ -1018,8 +1018,8 @@ function render() {
 
   // topo
   $('#topbar').innerHTML = q
-    ? `<a class="iconbtn" href="#quadros" aria-label="Voltar">${ICON.back}</a><div class="t"><div class="brand">OCM Filmes</div><div class="sub">Quadro · ${esc(q.nome)}</div></div>`
-    : `<div class="t"><div class="brand">OCM Filmes</div></div>`;
+    ? `<a class="iconbtn" href="#quadros" aria-label="Voltar">${ICON.back}</a><div class="t"><div class="brand"><span class="wm">OCM <em>Filmes</em></span></div><div class="sub">Quadro · ${esc(q.nome)}</div></div>`
+    : `<div class="t"><div class="brand"><span class="wm">OCM <em>Filmes</em></span></div></div>`;
   $('#topbar').insertAdjacentHTML('beforeend', '<span id="sync" class="sync"></span>');
   marcarSync(syncEstado);
 
@@ -1029,7 +1029,7 @@ function render() {
   $('#tabbar').innerHTML = tabs.map(([k, l, i]) => `<a href="#${k}" class="${tab === k ? 'active' : ''}">${i}${l}</a>`).join('');
 
   // barra lateral (computador)
-  $('#side').innerHTML = `<div class="logo">OCM Filmes</div>
+  $('#side').innerHTML = `<div class="logo"><span class="wm">OCM <em>Filmes</em></span></div>
     ${tabs.filter(([k]) => k !== 'quadros').map(([k, l, i]) => `<a href="#${k}" class="${r === k ? 'active' : ''}">${i}${l}</a>`).join('')}
     <div class="sh">Quadros</div>
     ${db.quadros.map((x) => `<a href="#quadro/${x.id}" class="${q?.id === x.id ? 'active' : ''}"><span class="sq" style="background:${x.cor}"></span>${esc(x.nome)}</a>`).join('')}
