@@ -45,6 +45,16 @@ function prazoBadge(iso, done, hora) {
   if (n <= 7) return `<span class="badge info">${fmtDate(iso)}${h}</span>`;
   return `<span class="badge">${fmtDate(iso)}${h}</span>`;
 }
+function prazoTxt(iso, done, hora) {
+  if (!iso) return '';
+  const h = hora ? ' ' + hora : '';
+  if (done) return `<span class="kd ok">✓ ${fmtDate(iso)}</span>`;
+  const n = diffDays(iso);
+  if (n < 0) return `<span class="kd late">${fmtDate(iso)}${h} · atrasado</span>`;
+  if (n === 0) return `<span class="kd ${hora && hora < agoraHHMM() ? 'late' : 'hoje'}">Hoje${h}</span>`;
+  if (n === 1) return `<span class="kd prox">Amanhã${h}</span>`;
+  return `<span class="kd">${fmtDate(iso)}${h}</span>`;
+}
 const quando = (c) => (c.prazo || '9999-99-99') + ' ' + (c.hora || '99:99');
 
 /* =========================================================
@@ -618,20 +628,22 @@ function kcardHTML(c, q) {
   const ck = c.checklist || [];
   const feitos = ck.filter((i) => i.feito).length;
   const done = !!coluna(q, c.colunaId)?.concluida;
-  return `<article class="kcard${done ? ' done' : ''}" data-card="${c.id}">
-    ${c.prioridade ? `<div class="labels"><span class="label" style="--c:${PRIO[c.prioridade]}">${esc(c.prioridade)}</span></div>` : ''}
+  const hoje = c.prazo === today() && !done;
+  const valor = q.tipo === 'orcamentos' && orcTotal(c) ? money(orcTotal(c)) : '';
+  return `<article class="kcard${done ? ' done' : ''}${hoje ? ' hoje' : ''}" data-card="${c.id}">
+    ${c.prioridade || c.numero ? `<div class="labels">${c.numero ? `<span class="knum">Nº ${esc(c.numero)}</span>` : ''}${c.prioridade ? `<span class="label" style="--c:${PRIO[c.prioridade]}">${esc(c.prioridade)}</span>` : ''}</div>` : ''}
     <div class="kt">${esc(c.titulo)}</div>
+    ${valor ? `<div class="kval">${valor}</div>` : ''}
+    ${ck.length ? `<div class="kck"><span style="width:${Math.round((feitos / ck.length) * 100)}%"></span></div>` : ''}
     <div class="km">${[
-      prazoBadge(c.prazo, done, c.hora),
-      ck.length ? `<span class="badge${feitos === ck.length ? ' ok' : ''}">${ICON.check} ${feitos}/${ck.length}</span>` : '',
-      c.descricao ? `<span class="badge" title="Tem descrição">${ICON.text}</span>` : '',
-      q.tipo === 'orcamentos' && orcTotal(c) ? `<span class="badge num">${money(orcTotal(c))}</span>` : '',
-      cli ? `<span class="chipc" style="--c:${corDe(cli.id)}">${esc(cli.nome)}</span>` : '',
+      prazoTxt(c.prazo, done, c.hora),
+      ck.length ? `<span class="kd${feitos === ck.length ? ' ok' : ''}">${feitos}/${ck.length}</span>` : '',
+      c.descricao ? `<span class="kd" title="Tem descrição">${ICON.text}</span>` : '',
+      cli ? `<span class="kcli">${esc(cli.nome)}</span>` : '',
       c.responsavel ? `<span class="avatar" style="--c:${corDe(c.responsavel)}" title="${esc(c.responsavel)}">${esc(iniciais(c.responsavel))}</span>` : '',
     ].join('')}</div>
   </article>`;
 }
-
 function rowCardHTML(c) {
   const q = quadro(c.quadroId);
   const k = coluna(q, c.colunaId);
@@ -714,11 +726,12 @@ function resumoHTML() {
 function tilesHTML() {
   return `<div class="tiles">${db.quadros.map((q) => {
     const n = db.cards.filter((c) => c.quadroId === q.id && !concluido(c)).length;
-    return `<a class="tile" href="#quadro/${q.id}" style="--c:${q.cor}">${esc(q.nome)}<small>${n} ${n === 1 ? 'cartão aberto' : 'cartões abertos'}</small></a>`;
+    return `<a class="tile" href="#quadro/${q.id}" style="--c:${q.cor}"><span class="tile-n">${n}</span><span class="tile-t">${esc(q.nome)}<small>${n === 1 ? 'aberto' : 'abertos'}</small></span></a>`;
   }).join('')}<button class="tile new" data-novo-quadro>+ Criar quadro</button></div>`;
 }
 function viewQuadros() {
-  return `<div class="page"><h1 style="margin:14px 0 14px">Quadros</h1>${tilesHTML()}</div>`;
+  const n = db.cards.filter((c) => !concluido(c)).length;
+  return `<div class="page"><div class="hero"><div class="mo q">${db.quadros.length} ${db.quadros.length === 1 ? 'quadro' : 'quadros'}</div><h1><em>Seus</em><br>quadros.</h1><div class="mo q">${n} ${n === 1 ? 'cartão aberto' : 'cartões abertos'}</div></div>${tilesHTML()}</div>`;
 }
 
 function viewQuadro(id) {
@@ -732,7 +745,7 @@ function viewQuadro(id) {
   const isOrc = q.tipo === 'orcamentos';
 
   const head = `<div class="board-head">
-      <h1>${esc(q.nome)}</h1>
+      <div class="bh-t"><div class="mo q">${isOrc ? 'Orçamentos' : 'Quadro'}</div><h1>${esc(q.nome)}</h1><div class="mo">${doQuadro.filter((c) => !concluido(c)).length} abertos · ${q.colunas.length} colunas</div></div>
       <div class="seg"><button class="${modo === 'quadro' ? 'on' : ''}" data-modo="quadro">Quadro</button><button class="${modo === 'lista' ? 'on' : ''}" data-modo="lista">Lista</button></div>
       <button class="iconbtn" data-board-menu aria-label="Opções do quadro">${ICON.more}</button>
     </div>
@@ -742,7 +755,7 @@ function viewQuadro(id) {
     return head + `<div class="lista">${q.colunas.map((k) => {
       const cs = cardsDe(k.id).filter(passa);
       return `<div class="group" style="--c:${k.cor}">
-        <div class="group-head">${esc(k.nome)} <span class="count">${cs.length} ${cs.length === 1 ? 'item' : 'itens'}${isOrc && cs.length ? ' · ' + money(cs.reduce((s, c) => s + orcTotal(c), 0)) : ''}</span></div>
+        <div class="group-head"><span class="col-n">${esc(k.nome)}</span> <span class="count">${cs.length} ${cs.length === 1 ? 'item' : 'itens'}${isOrc && cs.length ? ' · ' + money(cs.reduce((s, c) => s + orcTotal(c), 0)) : ''}</span></div>
         <div class="table">
           <div class="trow head${isOrc ? ' has-val' : ''}"><div>Item</div><div class="tc-center">Status</div><div>Cliente</div><div>Prazo</div><div class="tc-center">Prioridade</div>${isOrc ? '<div>Valor</div>' : ''}</div>
           ${cs.map((c) => { const cli = cliente(c.clienteId); return `<div class="trow${isOrc ? ' has-val' : ''}" data-open-card="${c.id}">
@@ -762,9 +775,9 @@ function viewQuadro(id) {
   return head + `<div class="board" id="board">${q.colunas.map((k) => {
     const cs = cardsDe(k.id).filter(passa);
     return `<section class="col" data-col="${k.id}">
-      <header class="col-head" data-edit-col="${k.id}"><span class="pill" style="--c:${k.cor}">${esc(k.nome)}</span><span class="count">${cs.length}</span>${isOrc && cs.length ? `<span class="sum">${money(cs.reduce((s, c) => s + orcTotal(c), 0))}</span>` : ''}</header>
+      <header class="col-head" data-edit-col="${k.id}"><span class="col-dot" style="--c:${k.cor}"></span><span class="col-n">${esc(k.nome)}</span><span class="count">${cs.length}</span>${isOrc && cs.length ? `<span class="sum">${money(cs.reduce((s, c) => s + orcTotal(c), 0))}</span>` : ''}</header>
       <div class="col-cards" data-col-cards="${k.id}">${cs.map((c) => kcardHTML(c, q)).join('')}</div>
-      <form class="quick-add" data-quick="${k.id}"><input name="t" placeholder="+ Adicionar cartão" enterkeyhint="done"></form>
+      <form class="quick-add" data-quick="${k.id}"><input name="t" placeholder="+ Adicionar" enterkeyhint="done"></form>
     </section>`;
   }).join('')}<button class="add-col" data-add-col>+ Nova coluna</button></div>`;
 }
