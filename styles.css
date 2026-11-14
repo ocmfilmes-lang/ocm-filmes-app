@@ -365,3 +365,10 @@ body.deslogado .side, body.deslogado .tabbar, body.deslogado .topbar, body.deslo
 .sync { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--ok); opacity: .8; transition: background .2s; }
 .sync.salvando { background: var(--warn); }
 .sync.erro { background: var(--danger); }
+
+/* Resumo do WhatsApp */
+.resumo { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 6px; }
+.resumo summary { cursor: pointer; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; list-style: none; }
+.resumo summary::-webkit-details-marker { display: none; }
+.resumo summary small { color: var(--muted); font-size: 12px; }
+.resumo-txt { white-space: pre-wrap; margin-top: 10px; line-height: 1.5; font-size: 14px; }

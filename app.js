@@ -208,11 +208,14 @@ async function carregarTudo() {
   }
   novo.quadros.sort((a, b) => a.posicao - b.posicao);
   db = novo;
+  const { data: rs } = await sb.from('resumos').select('*').eq('workspace_id', ws).order('criado_em', { ascending: false }).limit(5);
+  resumos = rs || [];
   for (const n of ORDEM) snap[n] = new Map(db[n].map((o) => [o.id, assinatura(n, o)]));
   carregado = true;
 }
 
 let canal = null;
+let resumos = [];
 function assinarAoVivo() {
   canal?.unsubscribe();
   canal = sb.channel('ws-' + ws);
@@ -221,6 +224,8 @@ function assinarAoVivo() {
     canal.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: n, filter: `workspace_id=eq.${ws}` }, (p) => chegou(n, p.new));
     canal.on('postgres_changes', { event: 'DELETE', schema: 'public', table: n }, (p) => saiu(n, p.old?.id));
   }
+  canal.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'resumos', filter: `workspace_id=eq.${ws}` }, (p) => { resumos.unshift(p.new); resumos = resumos.slice(0, 5); atualizarTela(); });
+  canal.on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'resumos' }, (p) => { resumos = resumos.filter((r) => r.id !== p.old?.id); atualizarTela(); });
   canal.subscribe();
 }
 function chegou(n, row) {
@@ -671,11 +676,21 @@ function viewInicio() {
       <div class="stat"><div class="k">Próximos 7 dias</div><div class="v">${prox.length}</div></div>
       <a class="stat" href="#financeiro"><div class="k">A receber</div><div class="v">${money(aReceber)}</div></a>
     </div>
+    ${resumoHTML()}
     ${atrasados.length ? sec('Atrasados', atrasados.length) + box(atrasados.map(rowCardHTML)) : ''}
     ${sec('Hoje', hoje.length)}${box(hoje.map(rowCardHTML), 'Nada com prazo para hoje.')}
     ${sec('Próximos 7 dias', prox.length)}${box(prox.map(rowCardHTML), 'Nada nos próximos 7 dias.')}
     ${sec('Seus quadros')}${tilesHTML()}
   </div>`;
+}
+function resumoHTML() {
+  const r = resumos[0];
+  if (!r) return '';
+  const quando = new Date(r.criado_em).toLocaleString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  return `${sec('Resumo do WhatsApp')}<details class="resumo" ${Date.now() - new Date(r.criado_em) < 12 * 3600e3 ? 'open' : ''}>
+    <summary><b>${esc(r.titulo)}</b><small>${esc(quando)}</small></summary>
+    <div class="resumo-txt">${esc(r.texto)}</div>
+  </details>`;
 }
 function tilesHTML() {
   return `<div class="tiles">${db.quadros.map((q) => {
