@@ -1,6 +1,6 @@
 // OCM Filmes — quadros estilo Trello / ClickUp / Monday, com dados na nuvem (Supabase)
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
-import { abertura } from './abertura.js?v=21';
+import { abertura } from './abertura.js?v=22';
 
 /* =========================================================
    Utilidades
