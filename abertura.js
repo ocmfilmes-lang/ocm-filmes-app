@@ -4,39 +4,36 @@
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-/* ---------- runas desenhadas à mão (caixa 8×14) ---------- */
-const RUNAS = {
-  O: [[[4, 0], [7.5, 4], [1, 14]], [[4, 0], [0.5, 4], [7, 14]]],
-  C: [[[7, 2], [1, 7], [7, 12]]],
-  M: [[[1, 0], [1, 14]], [[7, 0], [7, 14]], [[1, 0], [7, 6]], [[7, 0], [1, 6]]],
-  F: [[[2, 0], [2, 14]], [[2, 4], [7, 0]], [[2, 8], [7, 4]]],
-  I: [[[4, 0], [4, 14]]],
-  L: [[[2, 0], [2, 14]], [[2, 0], [7, 4]]],
-  E: [[[1, 0], [1, 14]], [[7, 0], [7, 14]], [[1, 0], [4, 5], [7, 0]]],
-  S: [[[6, 0], [2, 5], [6, 9], [2, 14]]],
-  R: [[[2, 0], [2, 14]], [[2, 0], [7, 3.5], [2, 7], [7, 14]]],
-  N: [[[4, 0], [4, 14]], [[1, 5], [7, 9]]],
-  T: [[[4, 0], [4, 14]], [[0.5, 4], [4, 0], [7.5, 4]]],
-  A: [[[2, 0], [2, 14]], [[2, 0], [7, 4]], [[2, 4], [7, 8]]],
-  '✦': [[[4, 5], [6, 7], [4, 9], [2, 7], [4, 5]]],
+/* ---------- escrita élfica (traços originais, caixa 9×14; y=0 é a borda de fora) ---------- */
+const H = { a: 'M1.5 0.6 V10', d: 'M1.5 4 V13.6', s: 'M1.5 4 V10' };
+const B1 = ' M1.5 4.7 C6.8 3.4 7.2 9.8 1.5 9.5';
+const B2 = ' M1.5 4.7 C4.6 3.9 4.9 9.4 1.5 9.5 M4.1 5.2 C8.6 4.3 8.8 9.9 3.6 9.5';
+const T = {
+  ponto: ' M4.4 1.7 l.01 0', acento: ' M3.2 2.9 C4.3 2.2 5 1.4 5.9 0.4', curva: ' M2.4 1.2 C3.4 3.1 6.2 2.8 6.4 0.6',
+  til: ' M1.8 2 C3 0.4 4.4 3 6.6 1.1', tres: ' M2.6 2.3 l.01 0 M4.5 0.9 l.01 0 M6.4 2.3 l.01 0',
+};
+const ELFICO = {
+  O: H.s + B1 + T.curva, C: H.d + B1, M: H.s + B2 + T.til, F: H.a + B1 + T.acento,
+  I: 'M3.2 5.6 C2.6 7.4 2.6 8.8 3.6 9.8' + T.ponto, L: 'M1 10 C0.8 3.6 7.6 3.4 7.6 7.4 C7.6 9.6 6 10.2 5 9.6',
+  E: 'M3.4 5.4 C2.6 7.4 2.8 9 4 9.8' + T.acento, S: 'M6.6 4.6 C2.2 3.6 1.4 7.4 4.2 7.4 C7.6 7.4 7.4 11.6 1.4 10.4',
+  R: 'M1.5 10 V6 C1.5 3.6 6.8 3.4 6.6 6.4', N: H.s + B2, T: H.a + B2 + T.ponto,
+  A: 'M3.2 5.6 C2.6 7.4 2.6 8.8 3.6 9.8' + T.tres,
+  '✦': 'M4.5 4.6 C5.6 6 5.6 8 4.5 9.4 C3.4 8 3.4 6 4.5 4.6 M1 7 l.01 0 M8 7 l.01 0',
 };
 function anelSVG() {
-  const frase = 'OCM FILMES ✦ O CRONISTA MENTIROSO ✦ ';
+  const frase = 'OCM FILMES ✦ O CRONISTA MENTIROSO ✦ '.repeat(2);
   const passo = 360 / frase.length;
-  let runas = '';
+  let letras = '';
   [...frase].forEach((ch, i) => {
-    const r = RUNAS[ch];
-    if (!r) return;
-    const linhas = r.map((p) => `<polyline points="${p.map((q) => q.join(',')).join(' ')}"/>`).join('');
-    runas += `<g class="runa" style="--i:${i}" transform="rotate(${(i * passo).toFixed(2)} 200 200) translate(194.8 13) scale(1.3)">${linhas}</g>`;
+    const d = ELFICO[ch];
+    if (!d) return;
+    letras += `<path class="runa" style="--i:${i}" transform="rotate(${(i * passo).toFixed(2)} 200 200) translate(194.4 14) scale(1.25)" d="${d}"/>`;
   });
-  const marcas = [0, 90, 180, 270].map((a) => `<path class="m" transform="rotate(${a} 200 200)" d="M200 32 l4 6 -4 6 -4 -6z"/>`).join('');
   return `<svg class="ab-anel" viewBox="0 0 400 400" aria-hidden="true">
     <g class="ab-giro">
-      <circle class="c" cx="200" cy="200" r="162" pathLength="1"/>
+      <circle class="c" cx="200" cy="200" r="164" pathLength="1"/>
       <circle class="c c2" cx="200" cy="200" r="150" pathLength="1"/>
-      ${marcas}
-      ${runas}
+      ${letras}
     </g>
   </svg>`;
 }

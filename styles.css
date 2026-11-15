@@ -816,13 +816,13 @@ dialog#sheet::before { content: ""; display: block; width: 38px; height: 4px; bo
 .ab-anel .c { fill: none; stroke: var(--brasa); stroke-width: 1.1; stroke-dasharray: 1; stroke-dashoffset: 1; filter: drop-shadow(0 0 4px rgba(255, 110, 30, .9)); }
 .ab-anel .c2 { stroke-width: .6; opacity: .6; }
 .ab-anel .m { fill: var(--ouro); opacity: 0; }
-.ab-anel .runa { fill: none; stroke: var(--ouro); stroke-width: 1.05; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
+.ab-anel .runa { fill: none; stroke: var(--ouro); stroke-width: .95; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
 .ab.on .ab-anel .c { animation: traca 3s cubic-bezier(.5, 0, .3, 1) 1.6s forwards, esfria 2.5s ease 7.2s forwards; }
 .ab.on .ab-anel .c2 { animation-delay: 2s, 7.2s; }
 .ab.on .ab-anel .m { animation: acende 1s ease 7.2s forwards; }
-.ab.on .ab-anel .runa { animation: forja 3.2s ease forwards; animation-delay: calc(2.6s + var(--i) * 110ms); }
+.ab.on .ab-anel .runa { animation: forja 3.2s ease forwards; animation-delay: calc(2.6s + var(--i) * 58ms); }
 .ab-titulo { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; text-align: center; }
-.ab-titulo h1 { margin: 0; font: 700 clamp(64px, 22vw, 120px)/1 'Cinzel', var(--serif); letter-spacing: .08em; padding-left: .08em; background: linear-gradient(105deg, transparent 42%, rgba(255, 252, 235, .95) 50%, transparent 58%) no-repeat, linear-gradient(180deg, #fff3d6 0%, #e9c47e 36%, #9d6a2b 60%, #e6c27f 82%, #fbe6b3 100%); background-size: 300% 100%, 100% 100%; background-position: 150% 0, 0 0; -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 2px 0 rgba(60, 30, 5, .6)) drop-shadow(0 0 22px rgba(220, 150, 60, .45)); opacity: 0; }
+.ab-titulo h1 { margin: 0; font: 600 clamp(72px, 25vw, 136px)/.9 'Cormorant Garamond', var(--serif); letter-spacing: .06em; padding-left: .06em; background: linear-gradient(105deg, transparent 42%, rgba(255, 252, 235, .95) 50%, transparent 58%) no-repeat, linear-gradient(180deg, #fff3d6 0%, #e9c47e 36%, #9d6a2b 60%, #e6c27f 82%, #fbe6b3 100%); background-size: 300% 100%, 100% 100%; background-position: 150% 0, 0 0; -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 2px 0 rgba(60, 30, 5, .6)) drop-shadow(0 0 22px rgba(220, 150, 60, .45)); opacity: 0; }
 .ab-filmes { font: 600 clamp(13px, 3.6vw, 17px)/1 'Cinzel', var(--serif); letter-spacing: .72em; padding-left: .72em; text-transform: uppercase; color: var(--ouro); margin-top: 8px; opacity: 0; }
 .ab-orn { display: flex; align-items: center; gap: 10px; margin-top: 16px; color: var(--ouro); font-size: 10px; opacity: 0; }
 .ab-orn i { width: 46px; height: 1px; background: linear-gradient(90deg, transparent, var(--ouro)); }
