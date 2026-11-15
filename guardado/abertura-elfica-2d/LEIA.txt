@@ -1,0 +1,3 @@
+Abertura 2D com anel élfico desenhado e OCM em Sorts Mill Goudy (publicada em 14/11/2026, commit fa0b1e9).
+Trocada pela versão 3D a pedido do Lucas ("élfico fajuto", "animação do OCM ruim", música pouco Senhor dos Anéis).
+Para voltar: copiar abertura.js para a raiz e o CSS de volta para o fim do styles.css.

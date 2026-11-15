@@ -1,6 +1,6 @@
 // OCM Filmes — abertura: "O Cronista Mentiroso"
-// Fantasia épica: fumaça, runas em brasa, título dourado e a crônica do dia.
-// A trilha é original e sintetizada aqui mesmo (Web Audio), sem arquivo de áudio.
+// Fantasia épica em 3D: anel de ouro com inscrição em Tengwar, OCM em ouro e a crônica do dia.
+// Trilha orquestral original (trilha-abertura.mp3). Se o 3D não carregar, fica a versão 2D (SVG).
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -38,192 +38,44 @@ export function anelSVG() {
   </svg>`;
 }
 
-/* ---------- trilha orquestral (Web Audio) ----------
-   Composição original no espírito das trilhas épicas de fantasia:
-   cordas graves em ostinato, trompas, coro masculino, tímpanos e tutti final em Ré maior. */
+/* ---------- trilha (mp3 original, tocada pelo Web Audio para poder fazer fade no iPhone) ---------- */
 function trilha() {
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return null;
   const ctx = new AC();
-  const master = ctx.createGain();
-  master.gain.value = 0.0001;
-  const comp = ctx.createDynamicsCompressor();
-  comp.threshold.value = -18; comp.ratio.value = 3.5; comp.attack.value = 0.02; comp.release.value = 0.5;
-  master.connect(comp).connect(ctx.destination);
-
-  // salão grande: reverb longo gerado
-  const rev = ctx.createConvolver();
-  const n = Math.floor(ctx.sampleRate * 5.5), imp = ctx.createBuffer(2, n, ctx.sampleRate);
-  for (let c = 0; c < 2; c++) { const d = imp.getChannelData(c); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2.8) * (i < 300 ? i / 300 : 1); }
-  rev.buffer = imp;
-  const revG = ctx.createGain(); revG.gain.value = 0.7; rev.connect(revG).connect(master);
-  const seco = ctx.createGain(); seco.gain.value = 0.8; seco.connect(master);
-  const bus = (molhado = 0.5) => { const g = ctx.createGain(), w = ctx.createGain(); w.gain.value = molhado; g.connect(seco); g.connect(w); w.connect(rev); return g; };
-  const ruido = (() => { const b = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; })();
-  const env = (g, t, a, pico, fim, rel) => {
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(pico, t + a);
-    g.gain.setValueAtTime(pico, Math.max(t + a, fim - 0.01));
-    g.gain.exponentialRampToValueAtTime(0.0001, fim + rel);
+  const ganho = ctx.createGain(); ganho.gain.value = 0.9; ganho.connect(ctx.destination);
+  let buf = null, fonte = null, inicio = 0, tocando = false, parado = false;
+  const pronto = fetch('trilha-abertura.mp3').then((r) => r.arrayBuffer())
+    .then((a) => new Promise((ok, erro) => ctx.decodeAudioData(a, ok, erro))).then((b) => { buf = b; }).catch(() => {});
+  function soltar(desde) {
+    if (tocando || parado || !buf || ctx.state !== 'running') return false;
+    const off = Math.max(0, desde || 0);
+    if (off > buf.duration - 3) { tocando = true; return true; } // já passou: fica em silêncio
+    fonte = ctx.createBufferSource(); fonte.buffer = buf; fonte.connect(ganho);
+    fonte.start(0, off); tocando = true; inicio = ctx.currentTime - off;
+    return true;
+  }
+  return {
+    pronto,
+    // tenta tocar a partir de "desde" segundos; devolve true se o som saiu (ou não precisa mais)
+    async tocar(desde) {
+      await pronto;
+      try { if (ctx.state !== 'running') await Promise.race([ctx.resume(), new Promise((r) => setTimeout(r, 250))]); } catch { /* bloqueado */ }
+      return soltar(desde);
+    },
+    get tocando() { return tocando; },
+    acordar() { try { if (ctx.state !== 'running') ctx.resume(); } catch { /* ok */ } },
+    mudo(sim) { ganho.gain.setTargetAtTime(sim ? 0 : 0.9, ctx.currentTime, 0.15); },
+    parar() {
+      parado = true;
+      try {
+        const t = ctx.currentTime;
+        ganho.gain.cancelScheduledValues(t); ganho.gain.setValueAtTime(ganho.gain.value, t); ganho.gain.linearRampToValueAtTime(0, t + 1.3);
+        setTimeout(() => ctx.close().catch(() => {}), 1600);
+      } catch { /* já fechado */ }
+    },
+    get tempo() { return tocando ? ctx.currentTime - inicio : 0; },
   };
-  const voz = (tipo, fr, det, t, fim, alvo) => {
-    const o = ctx.createOscillator(); o.type = tipo; o.frequency.value = fr; o.detune.value = det;
-    o.connect(alvo); o.start(t); o.stop(fim); return o;
-  };
-
-  // cordas sustentadas (naipe)
-  function cordas(freqs, t, dur, vol = 0.04, brilho = 1400, ataque = 0.8) {
-    const out = bus(0.6);
-    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = 0.6;
-    f.frequency.setValueAtTime(450, t); f.frequency.linearRampToValueAtTime(brilho, t + dur * 0.6); f.connect(out);
-    for (const fr of freqs) for (const det of [-11, -3, 8]) {
-      const g = ctx.createGain(); g.connect(f);
-      const o = voz('sawtooth', fr, det, t, t + dur + 2, g);
-      const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 4.8 + Math.random() * 0.8; lg.gain.value = 5; lfo.connect(lg).connect(o.detune); lfo.start(t); lfo.stop(t + dur + 2);
-      env(g, t, ataque, vol / 1.6, t + dur, 1.8);
-    }
-  }
-  // violoncelos e contrabaixos em ostinato (colcheias com acento)
-  function ostinato(notas, t, passo, vezes, v0, v1) {
-    const out = bus(0.45);
-    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1100; f.Q.value = 0.8; f.connect(out);
-    for (let i = 0; i < vezes; i++) {
-      const fr = notas[i % notas.length], tt = t + i * passo, v = (v0 + (v1 - v0) * (i / vezes)) * (i % 4 === 0 ? 1.35 : 1);
-      for (const [mult, det] of [[1, -6], [1, 7], [0.5, 0]]) {
-        const g = ctx.createGain(); g.connect(f);
-        voz('sawtooth', fr * mult, det, tt, tt + passo + 0.3, g);
-        g.gain.setValueAtTime(0.0001, tt); g.gain.exponentialRampToValueAtTime(v, tt + 0.025);
-        g.gain.exponentialRampToValueAtTime(v * 0.5, tt + passo * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, tt + passo + 0.25);
-      }
-    }
-  }
-  // trompas: linha melódica legato, som de metal que abre
-  function trompas(notas, t, vol = 0.07, oitava = true) {
-    const out = bus(0.7);
-    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = 1.2; f.connect(out);
-    const g = ctx.createGain(); g.connect(f); g.gain.setValueAtTime(0.0001, t);
-    const vozes = [voz('sawtooth', notas[0][0], -7, t, t + 30, g), voz('sawtooth', notas[0][0], 6, t, t + 30, g)];
-    if (oitava) { const g2 = ctx.createGain(); g2.gain.value = 0.5; g2.connect(g); vozes.push(voz('triangle', notas[0][0] / 2, 0, t, t + 30, g2)); }
-    const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 5; lg.gain.value = 3; lfo.connect(lg); vozes.forEach((o) => lg.connect(o.detune)); lfo.start(t);
-    let tt = t;
-    for (const [fr, d, forte = 1] of notas) {
-      vozes.forEach((o, i) => o.frequency.setTargetAtTime(i === 2 ? fr / 2 : fr, tt, 0.03));
-      g.gain.setTargetAtTime(vol * forte, tt, 0.07);
-      f.frequency.setTargetAtTime(700, tt, 0.01); f.frequency.setTargetAtTime(1500 + 700 * forte, tt + 0.03, 0.12);
-      f.frequency.setTargetAtTime(1000, tt + d * 0.6, 0.3);
-      tt += d;
-    }
-    g.gain.setTargetAtTime(0.0001, tt - 0.15, 0.4);
-    vozes.forEach((o) => o.stop(tt + 2.5)); lfo.stop(tt + 2.5);
-  }
-  // metais graves (trombones/tubas) em acorde
-  function metais(freqs, t, dur, vol = 0.05) {
-    const out = bus(0.6);
-    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = 1.5; f.connect(out);
-    f.frequency.setValueAtTime(350, t); f.frequency.exponentialRampToValueAtTime(1700, t + 0.35); f.frequency.exponentialRampToValueAtTime(900, t + dur);
-    for (const fr of freqs) for (const det of [-5, 5]) { const g = ctx.createGain(); g.connect(f); voz('sawtooth', fr, det, t, t + dur + 2, g); env(g, t, 0.18, vol / 1.4, t + dur, 1.4); }
-  }
-  // coro: vogal "a" (graves) ou "o" (agudas)
-  function coro(freqs, t, dur, vol = 0.04, agudo = false) {
-    const out = bus(0.8);
-    const forms = agudo ? [[500, 1], [900, 0.4], [2800, 0.1]] : [[620, 1], [1050, 0.45], [2500, 0.14]];
-    const soma = ctx.createGain();
-    for (const [fq, gq] of forms) { const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = fq; bp.Q.value = 6; const gg = ctx.createGain(); gg.gain.value = gq * 3.2; soma.connect(bp).connect(gg).connect(out); }
-    for (const fr of freqs) for (const det of [-14, -4, 5, 13]) {
-      const g = ctx.createGain(); g.connect(soma);
-      const o = voz('sawtooth', fr, det, t, t + dur + 2.6, g);
-      const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 4.5 + Math.random(); lg.gain.value = 9; lfo.connect(lg).connect(o.detune); lfo.start(t); lfo.stop(t + dur + 2.6);
-      env(g, t, Math.min(1.4, dur * 0.4), vol / 2, t + dur, 2.2);
-    }
-  }
-  function timpano(t, vol = 0.9, fr = 73.4) {
-    const out = bus(0.55);
-    const g = ctx.createGain(); g.connect(out);
-    const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(fr * 1.5, t); o.frequency.exponentialRampToValueAtTime(fr, t + 0.12);
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.2);
-    o.connect(g); o.start(t); o.stop(t + 2.3);
-    const r = ctx.createBufferSource(), rf = ctx.createBiquadFilter(), rg = ctx.createGain();
-    r.buffer = ruido; rf.type = 'lowpass'; rf.frequency.value = 700;
-    rg.gain.setValueAtTime(vol * 0.45, t); rg.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
-    r.connect(rf).connect(rg).connect(out); r.start(t); r.stop(t + 0.3);
-  }
-  function rufo(t0, t1, v0 = 0.04, v1 = 0.4) {
-    for (let tt = t0, i = 0; tt < t1; tt += 0.065, i++) timpano(tt, v0 + (v1 - v0) * ((tt - t0) / (t1 - t0)), i % 2 ? 73.4 : 72.6);
-  }
-  function prato(t, sobe, vol = 0.12) {
-    const out = bus(0.7);
-    const r = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
-    r.buffer = ruido; r.loop = true; f.type = 'highpass'; f.frequency.value = 5000;
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol * 0.6, t + sobe);
-    g.gain.exponentialRampToValueAtTime(vol, t + sobe + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + sobe + 3.5);
-    r.connect(f).connect(g).connect(out); r.start(t); r.stop(t + sobe + 3.6);
-  }
-  function grave(t, dur, fr = 36.71) {
-    const out = bus(0.35);
-    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 220; f.connect(out);
-    for (const m of [1, 2]) { const g = ctx.createGain(); g.connect(f); voz('sawtooth', fr * m, m === 1 ? 0 : 4, t, t + dur + 3, g); env(g, t, 2, m === 1 ? 0.13 : 0.07, t + dur, 2.5); }
-  }
-
-  const N = { D2: 73.42, F2: 87.31, A2: 110, Bb1: 58.27, Bb2: 116.54, C2: 65.41, C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, Fs3: 185, G3: 196, A3: 220, Bb3: 233.08, C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, Fs4: 369.99, G4: 392, A4: 440, Bb4: 466.16, C5: 523.25, D5: 587.33, E5: 659.25, Fs5: 739.99, A5: 880 };
-
-  function tocar() {
-    if (ctx.state === 'suspended') ctx.resume();
-    const t = ctx.currentTime + 0.05;
-    master.gain.setValueAtTime(0.0001, t);
-    master.gain.exponentialRampToValueAtTime(0.95, t + 1.2);
-    // 1. escuridão: pedal grave, rufo distante, ostinato que nasce
-    grave(t, 7);
-    rufo(t + 0.1, t + 1.6, 0.02, 0.12);
-    ostinato([N.D3, N.A2, N.F3 / 2 * 2, N.A2, N.D3, N.A2, N.E3, N.A2], t + 0.6, 0.24, 27, 0.03, 0.075);
-    cordas([N.D3, N.A3], t + 0.4, 6.6, 0.03, 900, 2);
-    // 2. tema nas trompas (original)
-    trompas([[N.D4, 0.95], [N.F4, 0.48], [N.E4, 0.48], [N.D4, 0.48], [N.A3, 1.2, 1.15], [N.C4, 0.48], [N.Bb3, 0.48], [N.A3, 0.48], [N.D4, 1.1, 1.2]], t + 1.3, 0.06);
-    coro([N.D3, N.A3], t + 2.8, 4.2, 0.035);
-    cordas([N.Bb2, N.F3, N.Bb3, N.D4], t + 4.9, 2.2, 0.035, 1600, 1);
-    coro([N.Bb2 * 2, N.D3 * 2 / 2 * 1, N.F3], t + 4.9, 2.2, 0.03);
-    // 3. subida ao título
-    rufo(t + 5.7, t + 7.15, 0.06, 0.55);
-    prato(t + 5.6, 1.6, 0.1);
-    trompas([[N.A3, 0.5], [N.Bb3, 0.5], [N.C4, 0.45, 1.2]], t + 5.7, 0.06, true);
-    // 4. TUTTI no título (Ré menor)
-    const T = t + 7.2;
-    timpano(T, 1); timpano(T, 0.7, 36.7);
-    metais([N.D2, N.A2, N.D3, N.F3], T, 1.7, 0.06);
-    cordas([N.D3, N.F3, N.A3, N.D4, N.F4, N.A4], T, 1.7, 0.045, 2600, 0.08);
-    coro([N.D3, N.F3, N.A3, N.D4], T, 1.7, 0.045);
-    coro([N.A4, N.D5], T, 1.7, 0.03, true);
-    trompas([[N.A4, 0.38, 1.3], [N.D5, 0.38, 1.3], [N.C5, 0.38, 1.2], [N.A4, 0.9, 1.25]], T, 0.055, false);
-    // 5. Si♭ → Dó → Ré maior (fim luminoso)
-    timpano(T + 2.0, 0.55);
-    metais([N.Bb1 * 2, N.F2, N.Bb2, N.D3], T + 2.0, 1.3, 0.05);
-    cordas([N.Bb2, N.F3, N.Bb3, N.D4, N.F4], T + 2.0, 1.3, 0.04, 2200, 0.15);
-    coro([N.F3, N.Bb3, N.D4], T + 2.0, 1.3, 0.04);
-    timpano(T + 3.3, 0.6, 65.4);
-    metais([N.C2 * 2, N.G3 / 2, N.C3, N.E3], T + 3.3, 1.3, 0.05);
-    cordas([N.C3, N.G3, N.C4, N.E4, N.G4], T + 3.3, 1.3, 0.04, 2400, 0.15);
-    coro([N.E3, N.G3, N.C4], T + 3.3, 1.3, 0.04);
-    trompas([[N.G4, 0.65, 1.1], [N.E4, 0.65, 1.1]], T + 3.3, 0.05, false);
-    const F = T + 4.6;
-    timpano(F, 0.95); timpano(F, 0.6, 36.7); prato(F - 0.6, 0.6, 0.09);
-    grave(F, 4.2);
-    metais([N.D2, N.A2, N.D3, N.Fs3, N.A3], F, 4.2, 0.05);
-    cordas([N.D3, N.A3, N.D4, N.Fs4, N.A4, N.D5], F, 4.5, 0.045, 2200, 0.2);
-    coro([N.D3, N.Fs3, N.A3, N.D4], F, 4.5, 0.045);
-    coro([N.Fs4, N.A4, N.D5], F + 0.3, 4.2, 0.03, true);
-    trompas([[N.D4, 0.5, 1.2], [N.Fs4, 0.5, 1.2], [N.A4, 2.6, 1.3]], F, 0.055);
-    master.gain.setValueAtTime(0.95, F + 4.2);
-    master.gain.exponentialRampToValueAtTime(0.0001, F + 7.5);
-  }
-  function parar() {
-    try {
-      const t = ctx.currentTime;
-      master.gain.cancelScheduledValues(t);
-      master.gain.setValueAtTime(Math.max(0.0001, master.gain.value), t);
-      master.gain.exponentialRampToValueAtTime(0.0001, t + 1.4);
-      setTimeout(() => ctx.close().catch(() => {}), 1700);
-    } catch { /* já fechado */ }
-  }
-  return { tocar, parar, ctx };
 }
 
 /* ---------- cena (canvas): fumaça que escorre e brasas ---------- */
@@ -302,11 +154,7 @@ export function abertura({ dt, ola, linhas }) {
     <div class="ab-luz"></div>
     <div class="ab-veu"></div>
     <div class="ab-grao"></div>
-    <div class="ab-porta">
-      <div class="ab-chama"><span></span></div>
-      <div class="ab-press">Toque para abrir a crônica</div>
-      <button type="button" class="ab-som">${som ? 'com som' : 'sem som'}</button>
-    </div>
+    <button type="button" class="ab-som">${som ? 'com som' : 'sem som'}</button>
     <div class="ab-cronica">
       <div class="ab-cab l" style="--d:0"><b>Crônica do dia</b><span>${esc(ola)} · ${esc(dt)}</span></div>
       ${linhas.map(([a, b], i) => `<div class="ab-it l" style="--d:${i + 1}"><b>${esc(a)}</b>${b ? `<small>${esc(b)}</small>` : ''}</div>`).join('')}
@@ -316,37 +164,57 @@ export function abertura({ dt, ola, linhas }) {
   document.body.appendChild(el);
 
   const cv = calmo ? null : cena(el.querySelector('canvas'));
-  let musica = null, fase = calmo ? 2 : 0, saiu = false;
+  const musica = calmo ? null : trilha();
+  let tres = null, fase = calmo ? 2 : 0, saiu = false, t0 = 0;
   const timers = [];
   const sair = () => {
     if (saiu) return; saiu = true;
     timers.forEach(clearTimeout);
     musica?.parar();
     el.classList.add('saindo');
-    setTimeout(() => { cv?.parar(); el.remove(); }, 1100);
+    setTimeout(() => { cv?.parar(); tres?.parar(); el.remove(); }, 1100);
   };
   const cronica = (pulou) => {
     if (fase >= 2) return; fase = 2;
-    el.classList.add('fim'); if (pulou) el.classList.add('pulou');
+    el.classList.add('fim'); if (pulou) { el.classList.add('pulou'); tres?.pular(); }
+    setTimeout(() => tres?.medir(), 1700);
     timers.push(setTimeout(sair, 10000 + linhas.length * 600));
   };
+  // começa sozinha: o 3D tem até 3,5 s para carregar (enquanto isso, só brasas no escuro)
   const comecar = () => {
-    fase = 1;
-    if (som) { try { musica = trilha(); musica?.tocar(); } catch { musica = null; } }
-    cv?.comecar();
+    if (fase !== 0 || saiu) return;
+    fase = 1; t0 = performance.now();
+    if (tres) el.classList.add('tres');
+    if (som) musica?.tocar(0);
+    cv?.comecar(); tres?.comecar();
     el.classList.add('on');
     timers.push(setTimeout(() => cronica(false), 12600));
+  };
+  if (!calmo) {
+    const limite = setTimeout(comecar, 3500);
+    Promise.all([
+      import('./abertura3d.js?v=21').then((m) => m.montar3D(el.querySelector('.ab-zoom'))).then((c) => { if (fase === 0 && !saiu) tres = c; else c.parar(); }).catch(() => {}),
+      musica?.pronto,
+    ]).then(() => { clearTimeout(limite); comecar(); });
+  }
+  // o iPhone só deixa tocar som depois de um toque: o primeiro toque liga a música no ponto certo
+  const destravar = async () => {
+    if (!som || !musica || musica.tocando || fase !== 1) return false;
+    return musica.tocar((performance.now() - t0) / 1000);
   };
   el.querySelector('.ab-som').addEventListener('click', (e) => {
     e.stopPropagation();
     som = !som;
     try { localStorage.setItem('ocm-som', som ? '1' : '0'); } catch { /* ok */ }
     e.currentTarget.textContent = som ? 'com som' : 'sem som';
+    if (som) { musica?.acordar(); musica?.mudo(false); destravar(); } else musica?.mudo(true);
   });
   el.querySelector('.ab-pular').addEventListener('click', (e) => { e.stopPropagation(); sair(); });
-  el.addEventListener('click', () => {
-    if (fase === 0) comecar();
-    else if (fase === 1) cronica(true);
+  el.addEventListener('click', async () => {
+    musica?.acordar(); // precisa ser dentro do toque (iPhone)
+    if (fase === 0) return;
+    if (fase === 1 && som && musica && !musica.tocando && await destravar()) return; // esse toque só ligou o som
+    if (fase === 1) cronica(true);
     else sair();
   });
 }
