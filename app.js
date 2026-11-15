@@ -1,5 +1,6 @@
 // OCM Filmes — quadros estilo Trello / ClickUp / Monday, com dados na nuvem (Supabase)
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
+import { abertura } from './abertura.js?v=17';
 
 /* =========================================================
    Utilidades
@@ -1225,22 +1226,7 @@ function boasVindas() {
   ].filter(Boolean).slice(0, 5);
   const ola = h < 5 ? 'Boa madrugada' : h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
   const dt = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
-  const el = document.createElement('div');
-  el.className = 'oi';
-  el.setAttribute('role', 'dialog');
-  el.setAttribute('aria-label', 'Resumo do dia');
-  el.innerHTML = `<div class="oi-luz"></div><div class="oi-grao"></div>
-    <div class="oi-conteudo">
-      <div class="mo q oi-l" style="--d:0">${esc(dt)}</div>
-      <h1 class="oi-l" style="--d:1"><em>${ola}.</em></h1>
-      <div class="oi-linhas">${linhas.map(([a, b], i) => `<div class="oi-l oi-item" style="--d:${i + 2}"><b>${esc(a)}</b>${b ? `<small>${esc(b)}</small>` : ''}</div>`).join('')}</div>
-      <div class="mo q oi-l oi-toque" style="--d:${linhas.length + 3}">toque para entrar</div>
-    </div>`;
-  document.body.appendChild(el);
-  let saiu = false;
-  const sair = () => { if (saiu) return; saiu = true; el.classList.add('saindo'); setTimeout(() => el.remove(), 600); };
-  el.addEventListener('click', sair);
-  setTimeout(sair, 3200 + linhas.length * 450);
+  abertura({ dt, ola, linhas });
 }
 
 function rota() {
