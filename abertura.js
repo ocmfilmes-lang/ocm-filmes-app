@@ -20,7 +20,7 @@ const ELFICO = {
   A: 'M3.2 5.6 C2.6 7.4 2.6 8.8 3.6 9.8' + T.tres,
   '✦': 'M4.5 4.6 C5.6 6 5.6 8 4.5 9.4 C3.4 8 3.4 6 4.5 4.6 M1 7 l.01 0 M8 7 l.01 0',
 };
-function anelSVG() {
+export function anelSVG() {
   const frase = 'OCM FILMES ✦ O CRONISTA MENTIROSO ✦ '.repeat(2);
   const passo = 360 / frase.length;
   let letras = '';
