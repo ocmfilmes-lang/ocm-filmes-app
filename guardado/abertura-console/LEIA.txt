@@ -1,0 +1,3 @@
+Abertura antiga (estilo console/PlayStation), guardada a pedido do Lucas em 14/11/2026.
+Para voltar: copiar abertura.js para a raiz e trocar o bloco "abertura" do styles.css por abertura.css.
+Também está na marca do git: abertura-console-v1.
