@@ -25,6 +25,8 @@ const PALAVRAS = [
 const ease = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 const faixa = (t, a, b) => ease((t - a) / (b - a));
 const mix = (a, b, k) => a + (b - a) * k;
+// curva que já começa com velocidade v0 e freia até parar (Hermite): nada de "parado, depois mexe"
+const lanca = (x, v0) => (x <= 0 ? 0 : x >= 1 ? 1 : (x * x * x - 2 * x * x + x) * v0 + 3 * x * x - 2 * x * x * x);
 
 async function inscricao(T) {
   const ff = new FontFace('OCMTengwar', `url(${FONTE_TENGWAR})`);
@@ -84,7 +86,7 @@ export async function montar3D(host) {
   const fonte = new Font(json);
 
   const cv = document.createElement('canvas');
-  cv.className = 'ab-3d';
+  cv.className = 'ab-3d'; cv.style.transition = 'none';
   host.prepend(cv);
   const r = new T.WebGLRenderer({ canvas: cv, antialias: true, alpha: true, powerPreference: 'high-performance' });
   r.setPixelRatio(Math.min(2, devicePixelRatio || 1));
@@ -132,7 +134,7 @@ export async function montar3D(host) {
   const grupo = new T.Group(); grupo.add(anel, veu); cena.add(grupo);
 
   // ---- OCM em ouro maciço (letra a letra, com o mesmo espaçamento do título) ----
-  const metal = new T.MeshStandardMaterial({ ...ouro, roughness: 0.26, emissive: 0xff7a2a, emissiveIntensity: 0, transparent: true, opacity: 0 });
+  const metal = new T.MeshStandardMaterial({ ...ouro, roughness: 0.26, emissive: 0xff7a2a, emissiveIntensity: 0, transparent: true, opacity: 0, depthWrite: true });
   const letras = new T.Group();
   let xL = 0;
   for (const ch of 'OCM') {
@@ -140,7 +142,7 @@ export async function montar3D(host) {
     geo.computeBoundingBox();
     const b = geo.boundingBox, m = new T.Mesh(geo, metal);
     m.position.x = xL - b.min.x; xL += b.max.x - b.min.x + 0.11;
-    letras.add(m);
+    m.renderOrder = 2; letras.add(m);
   }
   xL -= 0.11;
   letras.children.forEach((m) => { m.position.x -= xL / 2; m.position.z = -0.11; });
@@ -171,24 +173,25 @@ export async function montar3D(host) {
   };
   medir(); addEventListener('resize', medir);
 
-  let t0 = 0, rodando = false, raf = 0, salto = 0, fixo = null;
+  // relógio real (fica em sincronia com a trilha e com os textos em CSS)
+  let t0 = 0, salto = 0, rodando = false, raf = 0, fixo = null;
   const cor = new T.Color(), quente = new T.Color(0xffd9a0), laranja = new T.Color(0xff6a1e), dourado = new T.Color(0xe0a24c);
-  function quadro(agora) {
-    raf = requestAnimationFrame(quadro);
-    const t = fixo != null ? fixo : rodando ? (agora - t0) / 1000 + salto : 0;
-    // luz do mundo: sai do escuro
-    r.toneMappingExposure = mix(0, 1.05, faixa(t, 0.4, 3.6));
-    // câmera: começa colada na borda do anel, de lado, e recua até ficar de frente
-    const k = faixa(t, 0.8, 8.6);
+  function pose(t) {
+    // o anel surge do escuro (sem silhueta preta parada) e a luz do mundo sobe
+    cv.style.opacity = lanca(t / 1.8, 1.2);
+    r.toneMappingExposure = mix(0, 1.05, lanca(t / 3.2, 1.4));
+    // câmera: já sai em movimento, colada na borda do anel, e freia até ficar de frente
+    const k = lanca(t / 8.8, 0.85);
     cam.position.set(mix(2.6, 0, k), mix(-0.9, 0, k), mix(6.2, D, Math.pow(k, 0.85)));
     cam.lookAt(mix(1.6, 0, k), 0, 0);
-    // anel: deitado e girando, endireita até o clímax; depois só respira
-    const pos = t > 8.6 ? Math.sin((t - 8.6) * 0.45) : 0;
-    grupo.rotation.set(mix(1.15, 0, k) + pos * 0.025, mix(-0.55, 0, k) + pos * 0.04, mix(-1.4, 0, ease((t - 0.8) / 9)));
+    // anel: gira desde o primeiro quadro e vai perdendo força até assentar; depois só respira
+    const giro = -2.2 * Math.exp(-t / 2.6) * (1 - faixa(t, 7.5, 10.5));
+    const resp = Math.sin(t * 0.45) * faixa(t, 6, 10);
+    grupo.rotation.set(mix(1.15, 0, k) + resp * 0.025, mix(-0.55, 0, k) + resp * 0.04, giro);
     // brasa que circula o anel
     const a = t * 0.9;
     brasa.position.set(Math.cos(a) * 3.4, Math.sin(a) * 2.2, 2.4);
-    brasa.intensity = mix(0, 40, faixa(t, 0.5, 3)) * mix(1, 0.35, faixa(t, 9, 12));
+    brasa.intensity = mix(0, 40, faixa(t, 0.2, 2.6)) * mix(1, 0.35, faixa(t, 9, 12));
     // inscrição: acende letra a letra em brasa e esfria para ouro
     uRevela.value = mix(0, 1.04, faixa(t, 2.4, 7.4));
     const esfria = faixa(t, 8.8, 12);
@@ -199,10 +202,10 @@ export async function montar3D(host) {
     // o ouro fica escuro na forja e ganha todo o reflexo no clímax
     const env = mix(0.22, 1, faixa(t, 8.2, 10.5));
     face.envMapIntensity = lado.envMapIntensity = metal.envMapIntensity = env;
-    // OCM: nasce no clarão do clímax
+    // OCM: nasce no clarão do clímax (material sempre transparente: nada recompila no meio)
     const n = faixa(t, 8.35, 10.2);
     metal.opacity = faixa(t, 8.35, 9.1);
-    metal.transparent = metal.opacity < 1;
+    ocm.visible = metal.opacity > 0.001;
     metal.emissiveIntensity = mix(2.4, 0, faixa(t, 8.6, 11.2)) * (t > 8.35 ? 1 : 0);
     const s = (alvo.w / xL) * mix(1.22, 1, n);
     ocm.scale.setScalar(s);
@@ -212,8 +215,18 @@ export async function montar3D(host) {
     const v = faixa(t, 9.6, 11.8);
     varre.position.set(mix(-4, 4, v), alvo.y + 0.6, 1.8);
     varre.intensity = v > 0 && v < 1 ? Math.sin(v * Math.PI) * 30 : 0;
+  }
+  function quadro(agora) {
+    raf = requestAnimationFrame(quadro);
+    if (fixo == null && !rodando) return; // antes do play a tela fica vazia (nada de anel parado)
+    pose(fixo != null ? fixo : Math.max(0, (agora - t0) / 1000 + salto));
     r.render(cena, cam);
   }
+  // aquecimento: compila todos os shaders e sobe as texturas antes do play (era isso que engasgava)
+  pose(10); ocm.visible = true;
+  try { await r.compileAsync(cena, cam); } catch { r.compile(cena, cam); }
+  r.toneMappingExposure = 0; r.render(cena, cam);
+  pose(0); r.render(cena, cam); r.clear(); cv.style.opacity = 0;
   raf = requestAnimationFrame(quadro);
   return {
     comecar() { rodando = true; t0 = performance.now(); medir(); },

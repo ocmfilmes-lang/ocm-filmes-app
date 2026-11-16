@@ -193,7 +193,7 @@ export function abertura({ dt, ola, linhas }) {
   if (!calmo) {
     const limite = setTimeout(comecar, 3500);
     Promise.all([
-      import('./abertura3d.js?v=21').then((m) => m.montar3D(el.querySelector('.ab-zoom'))).then((c) => { if (fase === 0 && !saiu) tres = c; else c.parar(); }).catch(() => {}),
+      import('./abertura3d.js?v=22').then((m) => m.montar3D(el.querySelector('.ab-zoom'))).then((c) => { if (fase === 0 && !saiu) tres = c; else c.parar(); }).catch(() => {}),
       musica?.pronto,
     ]).then(() => { clearTimeout(limite); comecar(); });
   }
